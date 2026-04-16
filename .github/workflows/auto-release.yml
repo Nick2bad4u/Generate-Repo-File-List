@@ -21,12 +21,12 @@ jobs:
 
         steps:
             - name: Harden the runner
-              uses: step-security/harden-runner@95d9a5deda9de15063e7595e9719c11c38c90ae2 # v2.13.2
+              uses: step-security/harden-runner@fe104658747b27e96e4f7e80cd0a94068e53901d # v2.16.1
               with:
                   egress-policy: audit
 
             - name: Checkout repository
-              uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+              uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
               with:
                   fetch-depth: 0
                   token: ${{ secrets.GITHUB_TOKEN }}
@@ -136,7 +136,7 @@ jobs:
                   echo "Created and pushed tag ${{ steps.bump_version.outputs.new_tag }}"
 
             - name: Create GitHub Release
-              uses: softprops/action-gh-release@5be0e66d93ac7ed76da52eca8bb058f665c3a5fe # v2.4.2
+              uses: softprops/action-gh-release@153bb8e04406b158c6c84fc1615b65b24149a1fe # v2.6.1
               with:
                   tag_name: ${{ steps.bump_version.outputs.new_tag }}
                   name: Release ${{ steps.bump_version.outputs.new_tag }}
