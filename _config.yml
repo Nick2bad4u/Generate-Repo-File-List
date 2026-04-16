@@ -1,7 +1,8 @@
 remote_theme: pages-themes/hacker@v0.2.0
-title: Nick2bad4u / Typpi.online File List Generator Repository
+title: Generate Repo File List • Nick2bad4u
 description: A GitHub Action that generates a list of files in a repository and automatically updates your README.md
-url: "https://filelister.action.typpi.online" # the base hostname & protocol for your site
+url: "https://nick2bad4u.github.io" # the base hostname & protocol for your site
+baseurl: "/Generate-Repo-File-List" # the subpath of your site
 plugins:
     - jekyll-sitemap
     - jekyll-seo-tag

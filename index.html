@@ -1,0 +1,234 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Generate Repo File List • GitHub Action by Nick2bad4u</title>
+        <meta
+            name="description"
+            content="A configurable GitHub Action and Python utility that builds beautiful, lazy-loaded HTML and clean Markdown file inventories for your repository."
+        />
+        <link rel="canonical" href="https://nick2bad4u.github.io/Generate-Repo-File-List/" />
+
+        <!-- Google Tag Manager -->
+        <script>
+            (function (w, d, s, l, i) {
+                w[l] = w[l] || [];
+                w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });
+                var f = d.getElementsByTagName(s)[0],
+                    j = d.createElement(s),
+                    dl = l != "dataLayer" ? "&l=" + l : "";
+                j.async = true;
+                j.src = "https://www.googletagmanager.com/gtm.js?id=" + i + dl;
+                f.parentNode.insertBefore(j, f);
+            })(window, document, "script", "dataLayer", "GTM-T8J6HPLF");
+        </script>
+        <!-- End Google Tag Manager -->
+
+        <style>
+            :root {
+                --bg: #0b1020;
+                --surface: #141a2f;
+                --surface-2: #1a2340;
+                --text: #e8ecff;
+                --muted: #b7c0ea;
+                --accent: #6ea8fe;
+                --border: #2a355f;
+                --success: #4dd48a;
+            }
+
+            * { box-sizing: border-box; }
+
+            body {
+                margin: 0;
+                font-family: Inter, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+                color: var(--text);
+                background: radial-gradient(circle at top, #1b2f60 0%, var(--bg) 45%);
+                line-height: 1.6;
+            }
+
+            .wrap {
+                max-width: 1100px;
+                margin: 0 auto;
+                padding: 28px 16px 48px;
+            }
+
+            .hero {
+                border: 1px solid var(--border);
+                border-radius: 18px;
+                background: linear-gradient(160deg, rgba(110,168,254,0.16), rgba(74,144,226,0.06));
+                padding: 24px;
+                margin-bottom: 16px;
+            }
+
+            .title {
+                margin: 0 0 8px;
+                font-size: clamp(1.9rem, 3vw, 2.5rem);
+                line-height: 1.15;
+            }
+
+            .subtitle {
+                margin: 0;
+                color: var(--muted);
+                max-width: 75ch;
+            }
+
+            .meta {
+                margin-top: 14px;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .pill {
+                border: 1px solid var(--border);
+                background: rgba(20,26,47,0.75);
+                border-radius: 999px;
+                padding: 6px 12px;
+                font-size: 0.88rem;
+                color: var(--muted);
+                text-decoration: none;
+            }
+
+            .pill:hover { border-color: var(--accent); color: var(--text); }
+
+            .grid {
+                display: grid;
+                grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+                gap: 12px;
+                margin-bottom: 14px;
+            }
+
+            .card {
+                border: 1px solid var(--border);
+                border-radius: 14px;
+                background: var(--surface);
+                padding: 16px;
+            }
+
+            .card h2 { margin: 0 0 8px; font-size: 1.05rem; }
+
+            .card p {
+                margin: 0 0 12px;
+                color: var(--muted);
+                font-size: 0.95rem;
+            }
+
+            .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+            .btn {
+                display: inline-block;
+                border: 1px solid var(--border);
+                background: var(--surface-2);
+                color: var(--text);
+                text-decoration: none;
+                border-radius: 10px;
+                padding: 8px 12px;
+                font-size: 0.9rem;
+                font-weight: 600;
+            }
+
+            .btn:hover { border-color: var(--accent); }
+
+            .note {
+                border: 1px solid rgba(77,212,138,0.45);
+                background: rgba(77,212,138,0.08);
+                color: #dffaea;
+                border-radius: 12px;
+                padding: 12px 14px;
+                font-size: 0.92rem;
+            }
+
+            footer {
+                margin-top: 12px;
+                color: var(--muted);
+                font-size: 0.85rem;
+            }
+        </style>
+    </head>
+    <body>
+        <!-- Google Tag Manager (noscript) -->
+        <noscript
+            ><iframe
+                src="https://www.googletagmanager.com/ns.html?id=GTM-T8J6HPLF"
+                height="0"
+                width="0"
+                style="display: none; visibility: hidden"
+            ></iframe
+        ></noscript>
+        <!-- End Google Tag Manager (noscript) -->
+
+        <main class="wrap">
+            <section class="hero">
+                <h1 class="title">📁 Generate Repo File List</h1>
+                <p class="subtitle">
+                    A configurable GitHub Action and Python utility that builds
+                    beautiful, lazy-loaded HTML and clean Markdown file
+                    inventories for your repository.
+                </p>
+                <div class="meta">
+                    <a
+                        class="pill"
+                        href="https://github.com/Nick2bad4u/Generate-Repo-File-List"
+                        target="_blank"
+                        rel="noopener"
+                        >🔗 GitHub Repo</a
+                    >
+                    <a class="pill" href="./file_list.html">📄 Live File List</a>
+                    <a class="pill" href="./README.md">📘 README</a>
+                </div>
+            </section>
+
+            <section class="grid">
+                <article class="card">
+                    <h2>⚡ Live Inventory</h2>
+                    <p>Browse the current repository file map with lazy loading and color-coded links.</p>
+                    <div class="actions">
+                        <a class="btn" href="./file_list.html">Open HTML View</a>
+                        <a class="btn" href="./file_list.md">Open Markdown View</a>
+                    </div>
+                </article>
+
+                <article class="card">
+                    <h2>🧩 GitHub Action</h2>
+                    <p>Use this in your workflows to update README sections and publish file indexes automatically.</p>
+                    <div class="actions">
+                        <a class="btn" href="./action.yml">View Action Metadata</a>
+                        <a
+                            class="btn"
+                            href="https://github.com/Nick2bad4u/Generate-Repo-File-List/actions"
+                            target="_blank"
+                            rel="noopener"
+                            >View Workflow Runs</a
+                        >
+                    </div>
+                </article>
+
+                <article class="card">
+                    <h2>🛠️ Configuration</h2>
+                    <p>Adjust categories, ignore lists, color strategy, lazy-load behavior, and output format.</p>
+                    <div class="actions">
+                        <a class="btn" href="./README.md#inputs">Read Inputs</a>
+                        <a class="btn" href="./VERSIONING.md">Versioning Guide</a>
+                    </div>
+                </article>
+            </section>
+
+            <div class="note">
+                ✅ Google Tag Manager (<strong>GTM-T8J6HPLF</strong>) is active on this page and on all
+                generated HTML file-list output.
+            </div>
+
+            <footer>
+                Generated and maintained by
+                <a
+                    href="https://github.com/Nick2bad4u"
+                    target="_blank"
+                    rel="noopener"
+                    style="color: #9ec3ff"
+                    >Nick2bad4u</a
+                >.
+            </footer>
+        </main>
+    </body>
+</html>
