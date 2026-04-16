@@ -148,6 +148,10 @@ inputs:
         description: "Explicit branch, tag, or commit to use when generating links."
         required: false
         default: ""
+    gtm-id:
+        description: "Google Tag Manager container ID to embed in generated HTML (for example GTM-T8J6HPLF)."
+        required: false
+        default: "GTM-T8J6HPLF"
     output-file-stdout:
         description: 'Set to "true" to send the generated content to stdout instead of writing to a file.'
         required: false
@@ -219,6 +223,8 @@ runs:
         - ${{ inputs.default-branch }}
         - "--link-ref"
         - ${{ inputs.link-ref }}
+        - "--gtm-id"
+        - ${{ inputs.gtm-id }}
         - "--exclude-dark-colors"
         - ${{ inputs.exclude-dark-colors }}
         - "--exclude-bright-colors"

@@ -54,6 +54,7 @@ DEFAULT_ROOT_MARGIN_TABLET = "0px 0px 200px 0px"
 DEFAULT_ROOT_MARGIN_SMALL_DESKTOP = "0px 0px 300px 0px"
 DEFAULT_ROOT_MARGIN_LARGE_DESKTOP = "0px 0px 400px 0px"
 DEFAULT_LINK_REFERENCE = "main"
+DEFAULT_GTM_ID = "GTM-T8J6HPLF"
 
 DEFAULT_FILE_CATEGORIES_RAW = [
     (".user.css", "Userstyles"),
@@ -114,6 +115,7 @@ class GeneratorConfig:
     lazy: LazyLoadPreferences
     respect_gitignore: bool
     log_level: str
+    gtm_id: str
 
 
 def str_to_bool(value: str | bool) -> bool:
@@ -497,14 +499,147 @@ def build_lazyload_script(lazy: LazyLoadPreferences, chunk_data: Dict[str, str])
 def render_html(files: Sequence[Path], config: GeneratorConfig) -> str:
     sections = build_sections(files, config.categories, config.repo_root_header)
     color_gen = ColorGenerator(config.color)
-    header_parts: List[str] = []
-    if config.header_text.strip():
-        header_parts.append(f"<h1>{config.header_text}</h1>")
-    if config.intro_text.strip():
-        header_parts.append(f"<p>{config.intro_text}</p>")
+    header_text = config.header_text.strip().lstrip("#").strip() or "Repository File List"
+    intro_text = config.intro_text.strip().lstrip("#").strip()
+    repo_link = config.repo_url or "#"
+    gtm_head = ""
+    gtm_body = ""
+
+    if config.gtm_id:
+        gtm_head = textwrap.dedent(
+            f"""
+            <!-- Google Tag Manager -->
+            <script>
+            (function(w,d,s,l,i){{w[l]=w[l]||[];w[l].push({{'gtm.start': new Date().getTime(),event:'gtm.js'}});
+            var f=d.getElementsByTagName(s)[0],j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+            }})(window,document,'script','dataLayer','{config.gtm_id}');
+            </script>
+            <!-- End Google Tag Manager -->
+            """
+        ).strip()
+        gtm_body = (
+            f'<!-- Google Tag Manager (noscript) --><noscript><iframe src="https://www.googletagmanager.com/ns.html?id={config.gtm_id}" '
+            'height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript><!-- End Google Tag Manager (noscript) -->'
+        )
+
     content_parts: List[str] = []
-    if header_parts:
-        content_parts.append("\n".join(header_parts))
+    content_parts.append(
+        textwrap.dedent(
+            f"""
+            <!doctype html>
+            <html lang="en">
+            <head>
+              <meta charset="utf-8" />
+              <meta name="viewport" content="width=device-width, initial-scale=1" />
+              <title>{html.escape(header_text)} • {html.escape(config.directory.name)}</title>
+              <meta name="description" content="Beautiful, lazy-loaded repository file list." />
+              {gtm_head}
+              <style>
+                :root {{
+                  --bg: #0b1020;
+                  --surface: #141a2f;
+                  --surface-2: #1a2340;
+                  --text: #e8ecff;
+                  --muted: #b7c0ea;
+                  --accent: #6ea8fe;
+                  --border: #2a355f;
+                }}
+                * {{ box-sizing: border-box; }}
+                body {{
+                  margin: 0;
+                  font-family: Inter, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+                  background: radial-gradient(circle at top, #18274d 0%, var(--bg) 45%);
+                  color: var(--text);
+                  line-height: 1.6;
+                }}
+                .wrap {{ max-width: 1100px; margin: 0 auto; padding: 32px 16px 48px; }}
+                .hero {{
+                  background: linear-gradient(160deg, rgba(110,168,254,.15), rgba(74,144,226,.05));
+                  border: 1px solid var(--border);
+                  border-radius: 16px;
+                  padding: 24px;
+                  margin-bottom: 18px;
+                }}
+                h1 {{ margin: 0 0 8px; font-size: clamp(1.7rem, 2.8vw, 2.3rem); }}
+                .subtitle {{ margin: 0; color: var(--muted); }}
+                .meta {{
+                  margin-top: 14px;
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 10px;
+                }}
+                .pill {{
+                  display: inline-flex;
+                  align-items: center;
+                  gap: 8px;
+                  border: 1px solid var(--border);
+                  background: rgba(20, 26, 47, .75);
+                  border-radius: 999px;
+                  padding: 6px 12px;
+                  font-size: .88rem;
+                  color: var(--muted);
+                }}
+                .card {{
+                  background: var(--surface);
+                  border: 1px solid var(--border);
+                  border-radius: 14px;
+                  padding: 16px;
+                }}
+                .card ul {{ margin: 0; padding: 0; list-style: none; }}
+                .card li {{ margin: 0; }}
+                .card h2 {{
+                  margin: 18px 0 8px;
+                  font-size: 1.05rem;
+                }}
+                .card li:first-child h2 {{ margin-top: 6px; }}
+                .card a {{
+                  text-decoration: none;
+                  font-weight: 500;
+                  word-break: break-word;
+                }}
+                .card a:hover {{ text-decoration: underline; }}
+                .toolbar {{
+                  display: flex;
+                  flex-wrap: wrap;
+                  gap: 10px;
+                  margin-bottom: 12px;
+                }}
+                .btn {{
+                  background: var(--surface-2);
+                  border: 1px solid var(--border);
+                  color: var(--text);
+                  text-decoration: none;
+                  border-radius: 10px;
+                  padding: 8px 12px;
+                  font-size: .9rem;
+                }}
+                .btn:hover {{ border-color: var(--accent); }}
+                footer {{ color: var(--muted); margin-top: 16px; font-size: .85rem; }}
+              </style>
+            </head>
+            <body>
+              {gtm_body}
+              <main class="wrap">
+                <section class="hero">
+                  <h1>{html.escape(header_text)}</h1>
+                  <p class="subtitle">{html.escape(intro_text or 'Explore every file in this repository with fast lazy loading.')}</p>
+                  <div class="meta">
+                    <span class="pill">📁 {len(files)} files</span>
+                    <span class="pill">🏷️ Ref: {html.escape(config.link_reference)}</span>
+                    <a class="pill" href="{html.escape(repo_link)}" target="_blank" rel="noopener">🔗 Repository</a>
+                  </div>
+                </section>
+                <section class="card">
+                  <div class="toolbar">
+                    <a class="btn" href="./README.md" target="_blank" rel="noopener">README</a>
+                    <a class="btn" href="./file_list.md" target="_blank" rel="noopener">Markdown View</a>
+                    <a class="btn" href="{html.escape(repo_link)}" target="_blank" rel="noopener">Open on GitHub</a>
+                  </div>
+            """
+        ).strip()
+    )
+
     body_lines: List[str] = []
     for title, entries in sections:
         header_color = color_gen.next_color()
@@ -515,9 +650,12 @@ def render_html(files: Sequence[Path], config: GeneratorConfig) -> str:
             body_lines.append(
                 f'<li><a href="{url}" style="color: {color};">{html.escape(entry)}</a></li>'
             )
+
     if not body_lines:
         content_parts.append("<p>No files found.</p>")
+        content_parts.append("</section><footer>Generated by generate-repo-file-list.</footer></main></body></html>")
         return "\n\n".join(content_parts).strip() + "\n"
+
     chunk_size = max(1, config.lazy.chunk_size)
     chunks = [
         "\n".join(body_lines[index : index + chunk_size])
@@ -530,6 +668,7 @@ def render_html(files: Sequence[Path], config: GeneratorConfig) -> str:
     )
     content_parts.append(placeholders)
     content_parts.append(build_lazyload_script(config.lazy, chunk_map))
+    content_parts.append("</section><footer>Generated by generate-repo-file-list.</footer></main></body></html>")
     return "\n\n".join(content_parts).strip() + "\n"
 
 
@@ -603,6 +742,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--respect-gitignore", nargs="?", const=True, default=False, type=str_to_bool, help="Prefer git ls-files so .gitignore rules are honoured.")
     parser.add_argument("--link-ref", help="Explicit branch, tag, or SHA to use when building links.")
     parser.add_argument("--default-branch", help="Fallback branch name when link-ref is not supplied.")
+    parser.add_argument("--gtm-id", default=DEFAULT_GTM_ID, help="Google Tag Manager container ID to embed in generated HTML.")
     parser.add_argument("--output-file-stdout", dest="output_file_stdout", nargs="?", const=True, default=False, type=str_to_bool, help="Write output to stdout regardless of output-file value.")
     return parser
 
@@ -722,6 +862,7 @@ def build_config(args: argparse.Namespace) -> GeneratorConfig:
         lazy=lazy_preferences,
         respect_gitignore=args.respect_gitignore,
         log_level=args.log_level,
+        gtm_id=(args.gtm_id or "").strip(),
     )
 
 

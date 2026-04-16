@@ -187,6 +187,7 @@ jobs:
       respect-gitignore: "true"
       default-branch: "${{ github.event.repository.default_branch }}"
       link-ref: "${{ github.sha }}"
+      gtm-id: "GTM-T8J6HPLF"
       output-file-stdout: "false"
 
    - name: Update README.md
@@ -281,69 +282,70 @@ jobs:
 <details open>
 <summary><b>🔧 Essential Inputs</b></summary>
 
-| Parameter | Description | Default | Options |
-| --- | --- | --- | --- |
-| `directory` | Root directory to scan | `.` | Any valid path |
-| `output-format` | File format | `markdown` | `markdown`, `html` |
-| `output-file` | Output filename | `file_list.md` | Any filename |
-| `repo-url` | Repository URL | Auto-detected | GitHub URL |
-| `respect-gitignore` | Honor `.gitignore` | `false` | `true`, `false` |
+| Parameter           | Description            | Default        | Options            |
+| ------------------- | ---------------------- | -------------- | ------------------ |
+| `directory`         | Root directory to scan | `.`            | Any valid path     |
+| `output-format`     | File format            | `markdown`     | `markdown`, `html` |
+| `output-file`       | Output filename        | `file_list.md` | Any filename       |
+| `repo-url`          | Repository URL         | Auto-detected  | GitHub URL         |
+| `respect-gitignore` | Honor `.gitignore`     | `false`        | `true`, `false`    |
 
 </details>
 
 <details>
 <summary><b>🎨 Color & Styling Inputs</b></summary>
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `color-source` | Color generation method | `random` |
-| `color-list` | Custom color palette | `#FF0000 #00FF00 #0000FF` |
-| `color-range-start` | Min color for random | `#000000` |
-| `color-range-end` | Max color for random | `#FFFFFF` |
-| `exclude-dark-colors` | Skip dark colors | `false` |
-| `exclude-bright-colors` | Skip bright colors | `false` |
-| `ensure-readable-colors` | Maintain contrast ratio | `false` |
+| Parameter                | Description             | Default                   |
+| ------------------------ | ----------------------- | ------------------------- |
+| `color-source`           | Color generation method | `random`                  |
+| `color-list`             | Custom color palette    | `#FF0000 #00FF00 #0000FF` |
+| `color-range-start`      | Min color for random    | `#000000`                 |
+| `color-range-end`        | Max color for random    | `#FFFFFF`                 |
+| `exclude-dark-colors`    | Skip dark colors        | `false`                   |
+| `exclude-bright-colors`  | Skip bright colors      | `false`                   |
+| `ensure-readable-colors` | Maintain contrast ratio | `false`                   |
 
 </details>
 
 <details>
 <summary><b>📱 Responsive & Performance Inputs</b></summary>
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `chunk-size` | Lines per lazy-load chunk | `40` |
-| `viewport-mobile` | Mobile breakpoint (px) | `768` |
-| `viewport-tablet` | Tablet breakpoint (px) | `1024` |
-| `viewport-small-desktop` | Desktop breakpoint (px) | `1440` |
-| `root-margin-mobile` | Mobile intersection margin | `0px 0px 100px 0px` |
-| `root-margin-tablet` | Tablet intersection margin | `0px 0px 200px 0px` |
+| Parameter                | Description                | Default             |
+| ------------------------ | -------------------------- | ------------------- |
+| `chunk-size`             | Lines per lazy-load chunk  | `40`                |
+| `viewport-mobile`        | Mobile breakpoint (px)     | `768`               |
+| `viewport-tablet`        | Tablet breakpoint (px)     | `1024`              |
+| `viewport-small-desktop` | Desktop breakpoint (px)    | `1440`              |
+| `root-margin-mobile`     | Mobile intersection margin | `0px 0px 100px 0px` |
+| `root-margin-tablet`     | Tablet intersection margin | `0px 0px 200px 0px` |
 
 </details>
 
 <details>
 <summary><b>📂 File Organization Inputs</b></summary>
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `file-categories` | Custom ext/name pairs | ` ` |
-| `overwrite-file-categories` | Replace default categories | `false` |
-| `ignore-list` | Additional ignore patterns | ` ` |
-| `overwrite-ignore-list` | Replace default ignores | `false` |
-| `repo-root-header` | Root folder header | `Repo Root` |
-| `header-text` | Main file list header | `## File List` |
-| `intro-text` | Intro paragraph | `# Here is a list...` |
+| Parameter                   | Description                | Default               |
+| --------------------------- | -------------------------- | --------------------- |
+| `file-categories`           | Custom ext/name pairs      | ` `                   |
+| `overwrite-file-categories` | Replace default categories | `false`               |
+| `ignore-list`               | Additional ignore patterns | ` `                   |
+| `overwrite-ignore-list`     | Replace default ignores    | `false`               |
+| `repo-root-header`          | Root folder header         | `Repo Root`           |
+| `header-text`               | Main file list header      | `## File List`        |
+| `intro-text`                | Intro paragraph            | `# Here is a list...` |
 
 </details>
 
 <details>
 <summary><b>🔗 Version Control Inputs</b></summary>
 
-| Parameter | Description | Default |
-| --- | --- | --- |
-| `link-ref` | Git ref for file links | Current branch |
-| `default-branch` | Fallback branch | `main` |
-| `output-file-stdout` | Print to stdout | `false` |
-| `log-level` | Logging verbosity | `INFO` |
+| Parameter            | Description                                 | Default        |
+| -------------------- | ------------------------------------------- | -------------- |
+| `link-ref`           | Git ref for file links                      | Current branch |
+| `default-branch`     | Fallback branch                             | `main`         |
+| `gtm-id`             | Google Tag Manager container in HTML output | `GTM-T8J6HPLF` |
+| `output-file-stdout` | Print to stdout                             | `false`        |
+| `log-level`          | Logging verbosity                           | `INFO`         |
 
 </details>
 
@@ -407,11 +409,11 @@ This action uses **automated semantic versioning** 🤖. Every push to `main` tr
 
 ### 📈 Version Bump Rules
 
-| Commit Pattern | Bump Type | Example |
-| --- | --- | --- |
+| Commit Pattern            | Bump Type    | Example             |
+| ------------------------- | ------------ | ------------------- |
 | `BREAKING CHANGE` or `!:` | 🔴 **Major** | `v1.0.0` → `v2.0.0` |
-| `feat:` or `feature:` | 🟡 **Minor** | `v1.0.0` → `v1.1.0` |
-| All others | 🟢 **Patch** | `v1.0.0` → `v1.0.1` |
+| `feat:` or `feature:`     | 🟡 **Minor** | `v1.0.0` → `v1.1.0` |
+| All others                | 🟢 **Patch** | `v1.0.0` → `v1.0.1` |
 
 ### ✅ Recommended Usage
 
