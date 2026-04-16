@@ -12,11 +12,11 @@ The action uses semantic versioning (`v1.2.3`) and automatically creates release
 
 The workflow examines your commit messages since the last release to determine the version bump:
 
-| Commit Pattern               | Version Bump | Example             |
-| ---------------------------- | ------------ | ------------------- |
-| `BREAKING CHANGE` or `!:`    | **Major**    | `v1.0.0` → `v2.0.0` |
-| `feat:` or `feature:`        | **Minor**    | `v1.0.0` → `v1.1.0` |
-| All others (fix, docs, etc.) | **Patch**    | `v1.0.0` → `v1.0.1` |
+| Commit Pattern | Version Bump | Example |
+| --- | --- | --- |
+| `BREAKING CHANGE` or `!:` | **Major** | `v1.0.0` → `v2.0.0` |
+| `feat:` or `feature:` | **Minor** | `v1.0.0` → `v1.1.0` |
+| All others (fix, docs, etc.) | **Patch** | `v1.0.0` → `v1.0.1` |
 
 ### 2. Automatic Tagging
 

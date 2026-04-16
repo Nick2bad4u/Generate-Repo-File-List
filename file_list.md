@@ -43,12 +43,12 @@
 - [.github/workflows/static.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/.github/workflows/static.yml)
 - [.markdownlint.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/.markdownlint.yml)
 - [.scss-lint.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/.scss-lint.yml)
-- [_config.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/_config.yml)
+- [\_config.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/_config.yml)
 - [action.yml](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/action.yml)
 
 ### src
 
-- [src/__init__.py](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/src/__init__.py)
+- [src/**init**.py](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/src/__init__.py)
 - [src/generate_file_list.py](https://github.com/Nick2bad4u/generate-repo-file-list/blob/main/src/generate_file_list.py)
 
 ### tests
