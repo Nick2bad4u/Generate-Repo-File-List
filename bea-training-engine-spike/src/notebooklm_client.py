@@ -130,33 +130,120 @@ class NotebookLMEnterpriseClient:
         resp.raise_for_status()
         return resp.json()
 
-    # ---- sources (TODO Day 1: verify endpoint shape) ----
+    # ---- sources (sources:batchCreate + uploadFile) ----
 
-    def add_source(self, notebook_id: str, source_path: Path) -> dict[str, Any]:
-        """Upload a source document into a notebook.
+    def add_text_source(
+        self,
+        notebook_id: str,
+        display_name: str,
+        text: str,
+    ) -> dict[str, Any]:
+        """Add a text/markdown source via sources:batchCreate.
 
-        TODO Day 1: the sources REST endpoint shape isn't yet documented in the
-        page we fetched (it returned 404 on a guess). Find the correct endpoint
-        in the Google Cloud docs index for NotebookLM Enterprise and fill in.
+        Endpoint: POST /notebooks/{notebook_id}/sources:batchCreate
+        Body shape per the docs:
+            {
+              "requests": [
+                {"textContent": {"sourceName": "...", "content": "..."}}
+              ]
+            }
+        """
+        resp = requests.post(
+            f"{self._base_url()}/notebooks/{notebook_id}/sources:batchCreate",
+            headers=self._headers(),
+            json={
+                "requests": [
+                    {
+                        "textContent": {
+                            "sourceName": display_name,
+                            "content": text,
+                        }
+                    }
+                ]
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
-        Likely shape based on Discovery Engine conventions:
-            POST /notebooks/{notebook_id}/sources
-            body: { "displayName": "...", "content": {...} }
+    def add_web_source(self, notebook_id: str, url: str, display_name: str) -> dict[str, Any]:
+        """Add a webContent source via sources:batchCreate."""
+        resp = requests.post(
+            f"{self._base_url()}/notebooks/{notebook_id}/sources:batchCreate",
+            headers=self._headers(),
+            json={
+                "requests": [
+                    {"webContent": {"url": url, "sourceName": display_name}}
+                ]
+            },
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()
 
-        For PDFs, the content may need to be uploaded to a separate Discovery
-        Engine document store first, then referenced.
+    def add_youtube_source(self, notebook_id: str, youtube_url: str) -> dict[str, Any]:
+        """Add a YouTube videoContent source via sources:batchCreate."""
+        resp = requests.post(
+            f"{self._base_url()}/notebooks/{notebook_id}/sources:batchCreate",
+            headers=self._headers(),
+            json={"requests": [{"videoContent": {"youtubeUrl": youtube_url}}]},
+            timeout=60,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def upload_file_source(self, notebook_id: str, file_path: Path) -> dict[str, Any]:
+        """Upload a binary file source (PDF, DOCX, PPTX, XLSX, MP3, WAV, PNG, JPG...).
+
+        Uses the `uploadFile` method described in the sources docs. The exact
+        wire format (multipart vs binary upload via media upload protocol)
+        isn't shown in our fetched page — likely a Google Cloud media upload
+        endpoint pattern such as:
+            POST .../sources:uploadFile?uploadType=media
+        with the file as the raw body.
+
+        TODO Day 1: confirm by reading the full sources doc page. Most likely
+        path:
+
+            url = f"{self._base_url()}/notebooks/{notebook_id}/sources:uploadFile"
+            with open(file_path, "rb") as f:
+                resp = requests.post(
+                    url,
+                    headers={"Authorization": f"Bearer {self._access_token()}"},
+                    files={"file": (file_path.name, f, mime_for(file_path))},
+                    timeout=300,
+                )
+
+        For the spike, prefer .md / .txt source docs (use add_text_source) so
+        you don't have to debug the multipart shape on Day 1. PDFs can wait
+        until Phase 1 if the spike succeeds with text-only sources.
         """
         raise NotImplementedError(
-            "TODO Day 1: implement sources upload. See https://docs.cloud.google.com/"
-            "gemini/enterprise/notebooklm-enterprise/docs/ for the sources endpoint."
+            "TODO Day 1: implement uploadFile per the sources docs page. "
+            "Workaround for spike: convert PDFs to .md or .txt and use "
+            "add_text_source(). See spike runbook §Day-1-blocker-paths."
         )
 
     def list_sources(self, notebook_id: str) -> list[dict[str, Any]]:
         """List sources attached to a notebook.
 
-        TODO Day 1: confirm endpoint shape and fill in.
+        TODO Day 1: confirm REST shape (likely GET /notebooks/{id}/sources).
+        Not strictly needed for the spike but useful for debugging.
         """
-        raise NotImplementedError("TODO Day 1: implement sources list.")
+        raise NotImplementedError("TODO Day 1: implement sources list if needed.")
+
+    def add_source(self, notebook_id: str, source_path: Path) -> dict[str, Any]:
+        """Convenience dispatcher: pick the right add_*_source for the file extension."""
+        suffix = source_path.suffix.lower()
+        if suffix in {".md", ".txt"}:
+            return self.add_text_source(
+                notebook_id=notebook_id,
+                display_name=source_path.name,
+                text=source_path.read_text(),
+            )
+        if suffix == ".pdf":
+            return self.upload_file_source(notebook_id, source_path)
+        raise ValueError(f"Unsupported source extension: {suffix}")
 
     # ---- audio overview (the closest thing to a 'generate' call) ----
 

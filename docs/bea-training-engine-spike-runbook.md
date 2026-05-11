@@ -85,7 +85,7 @@ If the Enterprise audio overview path fails or its output isn't retrievable, fal
 
 | Symptom | Path | What to do |
 |---|---|---|
-| Sources endpoint not findable | **Path B** | Skip NotebookLM entirely. Use Claude with the source corpus + `prompts/slide-outline.md` to produce the deck directly. Lose the audio-overview voice; gain immediate progress. |
+| ~~Sources endpoint not findable~~ ~~**Path B**~~ | ~~Skip NotebookLM entirely. Use Claude with the source corpus + `prompts/slide-outline.md` to produce the deck directly. Lose the audio-overview voice; gain immediate progress.~~ **Resolved:** sources endpoint is `notebooks/{id}/sources:batchCreate`. For .md/.txt the kit handles it; for PDFs, `uploadFile` shape is the remaining Day 1 unknown — workaround: convert PDFs to .md for the spike. |
 | Audio overview generates but neither audio URL nor transcript is in the response | **Path B** | Same. NotebookLM-generated content that we can't retrieve programmatically isn't useful for an automated pipeline. |
 | Enterprise license unavailable | **Path C** | Use the unofficial `notebooklm-py` fork via `USE_LEGACY_NOTEBOOKLM=true`. Spike only — never production. |
 | Everything works end-to-end | **Path A (default)** | Continue to Day 2 as planned. |
