@@ -309,7 +309,7 @@ bea-training-engine/
 **Open questions:**
 
 1. Do creators see this as "AI-generated training" or is it presented as BEA-branded content? (Honesty vs polish tradeoff.)
-2. Is per-creator personalization the v1 differentiator or a v2 unlock?
+2. ~~Is per-creator personalization the v1 differentiator or a v2 unlock?~~ **Decided: V2 unlock.** Phase 1 MVP ships topic-driven generic training; Phase 2 layers in Toklytics-driven per-creator personalization.
 3. Local vs cloud NotebookLM as default — privacy posture decision.
 4. Who reviews/approves before publish, or is it fully auto?
 5. Languages beyond English in scope for v1?
