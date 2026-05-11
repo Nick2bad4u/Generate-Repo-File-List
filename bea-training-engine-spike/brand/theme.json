@@ -1,0 +1,18 @@
+{
+  "_comment": "PLACEHOLDER — fill these with real BEA brand values before Day 2 video render. See brand/README.md.",
+  "logo_path": "./brand/logo.png",
+  "primary_color": "#000000",
+  "secondary_color": "#FFFFFF",
+  "accent_color": "#000000",
+  "background_color": "#FFFFFF",
+  "font_heading": "Inter",
+  "font_body": "Inter",
+  "intro_seconds": 2,
+  "outro_seconds": 2,
+  "voice": "en-US-natural-female",
+  "video": {
+    "resolution": "1920x1080",
+    "fps": 30,
+    "container": "mp4"
+  }
+}

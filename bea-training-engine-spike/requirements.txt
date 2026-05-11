@@ -1,0 +1,12 @@
+# BEA Training Engine — Phase 0 Spike
+# Minimum dependencies. Forks have their own; setup.sh installs those separately.
+
+anthropic>=0.40.0
+python-dotenv>=1.0.1
+click>=8.1.7
+rich>=13.7.1
+pydantic>=2.7.0
+
+# For reading source documents in inputs/
+pypdf>=4.2.0
+markdown-it-py>=3.0.0
