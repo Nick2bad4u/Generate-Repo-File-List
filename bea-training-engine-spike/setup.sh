@@ -2,7 +2,10 @@
 #
 # BEA Training Engine — Phase 0 Spike Setup
 #
-# Clones the two key forks, bootstraps a Python venv, installs deps.
+# Bootstraps the spike kit:
+#   - Verifies python3 + gcloud are present
+#   - Clones training-video-generator (NotebookLM Enterprise needs no fork)
+#   - Creates a Python venv and installs deps
 # Idempotent: safe to re-run.
 
 set -euo pipefail
@@ -11,32 +14,48 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
 PYTHON_MIN_VERSION="3.11"
-NOTEBOOKLM_FORK="https://github.com/BEA-BOLD-EVOLUTION/notebooklm-py.git"
 VIDEO_GEN_FORK="https://github.com/BEA-BOLD-EVOLUTION/training-video-generator.git"
+LEGACY_NOTEBOOKLM_FORK="https://github.com/BEA-BOLD-EVOLUTION/notebooklm-py.git"
 
 # ---- helpers ----
 
 log() { printf "\n\033[1;34m[spike-setup]\033[0m %s\n" "$*"; }
+warn() { printf "\n\033[1;33m[spike-setup]\033[0m %s\n" "$*"; }
 fail() { printf "\n\033[1;31m[spike-setup] ERROR:\033[0m %s\n" "$*" >&2; exit 1; }
 
 check_python() {
-  if ! command -v python3 >/dev/null 2>&1; then
-    fail "python3 not found. Install Python ${PYTHON_MIN_VERSION}+ first."
-  fi
+  command -v python3 >/dev/null 2>&1 || fail "python3 not found. Install ${PYTHON_MIN_VERSION}+ first."
   local version
   version=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-  if ! python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)"; then
-    fail "Python ${version} found, but ${PYTHON_MIN_VERSION}+ required."
-  fi
+  python3 -c "import sys; sys.exit(0 if sys.version_info >= (3, 11) else 1)" \
+    || fail "Python ${version} found, but ${PYTHON_MIN_VERSION}+ required."
   log "Python ${version} OK"
+}
+
+check_gcloud() {
+  if ! command -v gcloud >/dev/null 2>&1; then
+    warn "gcloud CLI not found."
+    warn "Install: https://cloud.google.com/sdk/docs/install"
+    warn "Then: gcloud auth login && gcloud auth application-default login"
+    warn "Continuing setup, but the Enterprise API calls will fail until gcloud is installed."
+    return 0
+  fi
+  log "gcloud OK ($(gcloud --version | head -n 1))"
+
+  # Test that we can actually mint a token. If not, prompt the user but don't fail.
+  if gcloud auth print-access-token >/dev/null 2>&1; then
+    log "gcloud auth token OK"
+  else
+    warn "gcloud is installed but no active credential found."
+    warn "Run: gcloud auth login"
+  fi
 }
 
 clone_fork() {
   local url="$1"
   local dir="$2"
   if [[ -d "$dir" ]]; then
-    log "Fork already cloned at ${dir}, pulling latest"
-    (cd "$dir" && git pull --ff-only) || log "Pull failed (probably diverged); leaving as-is"
+    log "Already cloned at ${dir}"
   else
     log "Cloning ${url} -> ${dir}"
     git clone "$url" "$dir"
@@ -48,13 +67,18 @@ clone_fork() {
 log "Phase 0 spike setup starting in $(pwd)"
 
 check_python
+check_gcloud
 
-# Create directory structure that's gitignored
 mkdir -p forks inputs outputs
 
-# Clone the two forks we'll exercise
-clone_fork "$NOTEBOOKLM_FORK" "forks/notebooklm-py"
+# Always clone the video generator fork
 clone_fork "$VIDEO_GEN_FORK" "forks/training-video-generator"
+
+# Optionally clone the unofficial notebooklm-py if user opted into legacy mode
+if [[ "${USE_LEGACY_NOTEBOOKLM:-false}" == "true" ]]; then
+  log "USE_LEGACY_NOTEBOOKLM=true — also cloning the unofficial fork"
+  clone_fork "$LEGACY_NOTEBOOKLM_FORK" "forks/notebooklm-py"
+fi
 
 # Bootstrap venv
 if [[ ! -d ".venv" ]]; then
@@ -73,22 +97,15 @@ pip install --quiet --upgrade pip
 log "Installing spike requirements"
 pip install --quiet -r requirements.txt
 
-# Install forks in editable mode (best-effort — they may not be pip packages)
-if [[ -f "forks/notebooklm-py/pyproject.toml" || -f "forks/notebooklm-py/setup.py" ]]; then
-  log "Installing notebooklm-py in editable mode"
-  pip install --quiet -e forks/notebooklm-py || log "notebooklm-py editable install failed; you may need to import it differently — read its README"
-else
-  log "notebooklm-py has no setup.py/pyproject.toml; you'll import it directly. Read forks/notebooklm-py/README.md"
-fi
-
+# training-video-generator install
 if [[ -f "forks/training-video-generator/pyproject.toml" || -f "forks/training-video-generator/setup.py" ]]; then
   log "Installing training-video-generator in editable mode"
-  pip install --quiet -e forks/training-video-generator || log "training-video-generator editable install failed; read its README"
+  pip install --quiet -e forks/training-video-generator || warn "training-video-generator editable install failed; read its README"
 elif [[ -f "forks/training-video-generator/requirements.txt" ]]; then
   log "Installing training-video-generator requirements"
-  pip install --quiet -r forks/training-video-generator/requirements.txt || log "Requirements install failed; read the fork's README"
+  pip install --quiet -r forks/training-video-generator/requirements.txt || warn "Requirements install failed; read the fork's README"
 else
-  log "training-video-generator has no installable manifest; read forks/training-video-generator/README.md"
+  warn "training-video-generator has no installable manifest; read forks/training-video-generator/README.md"
 fi
 
 # Copy env template if missing
@@ -100,9 +117,10 @@ fi
 log "Setup complete."
 echo
 echo "Next steps:"
-echo "  1. Edit .env with your API keys"
-echo "  2. source .venv/bin/activate"
-echo "  3. Read forks/notebooklm-py/README.md to learn the auth method"
-echo "  4. Place source docs in inputs/"
-echo "  5. Place brand assets per brand/README.md"
-echo "  6. Run: python src/spike_orchestrator.py auth"
+echo "  1. Edit .env (GCP_PROJECT_NUMBER, NOTEBOOKLM_LOCATION, ANTHROPIC_API_KEY)"
+echo "  2. Run: gcloud auth login && gcloud auth application-default login"
+echo "  3. Confirm NotebookLM Enterprise license is enabled on your GCP project"
+echo "  4. source .venv/bin/activate"
+echo "  5. Place source docs in inputs/"
+echo "  6. Place brand assets per brand/README.md"
+echo "  7. Run: python src/spike_orchestrator.py auth"

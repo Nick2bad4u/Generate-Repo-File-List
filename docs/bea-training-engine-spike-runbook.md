@@ -4,6 +4,12 @@
 > Goal: Produce **one watchable BEA-branded training video** end-to-end from a fixed topic, with no orchestration / personalization / automation.
 > Output: Decision memo on whether `training-video-generator` quality is acceptable as-is, or needs significant rework before Phase 1.
 
+> **v0.2 update:** Pivoted from the unofficial `notebooklm-py` fork to the official **NotebookLM Enterprise REST API** (Google Cloud, Preview / v1alpha). Key implications:
+> - Auth via `gcloud auth print-access-token`, not session cookies
+> - Requires a NotebookLM Enterprise license on your GCP project
+> - The Enterprise API exposes notebooks + sources + audio overviews; **slide-deck generation is not a documented output** — Claude derives slides from the audio overview transcript + source corpus
+> - Day 1's critical verification is: *can we actually retrieve the audio file and transcript via API?* If not, see §"Day 1 blocker paths" below.
+
 ---
 
 ## Why this spike exists
@@ -21,8 +27,10 @@ Spending 3 days here saves potentially weeks of building orchestration around a 
 
 | Item | Status | Notes |
 |---|---|---|
-| Google account with NotebookLM access | ⬜ | Personal or workspace |
-| Cloud NotebookLM is acceptable for spike content | ⬜ | Use generic topic, no creator data |
+| Google Cloud project with **NotebookLM Enterprise license** | ⬜ | This is the gating prereq — see [setup docs](https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks) |
+| `gcloud` CLI installed + `gcloud auth login` done | ⬜ | Test: `gcloud auth print-access-token` returns a token |
+| Project number and region noted | ⬜ | From [console](https://console.cloud.google.com/projectnumber). Region is `us`, `eu`, or `global`. |
+| Anthropic API key (Claude does slide derivation) | ⬜ | Set `ANTHROPIC_API_KEY` in `.env` |
 | Local Python 3.11+ environment | ⬜ | |
 | 1 BEA branding asset bundle | ⬜ | Logo PNG, brand colors hex, intro music if used |
 | 1 fixed sample topic chosen | ⬜ | Recommend: *"How to acknowledge a gifter on TikTok LIVE"* — short, well-trodden, easy to evaluate quality |
@@ -30,63 +38,101 @@ Spending 3 days here saves potentially weeks of building orchestration around a 
 
 ---
 
-## Day 1 — Setup & first NotebookLM run
+## Day 1 — Setup, notebook, sources, kick audio overview
 
 ### Morning: environment
 
+The `bea-training-engine-spike/` kit in this repo automates most of this:
+
 ```bash
-# Working directory for the spike
-mkdir -p ~/spikes/bea-training-engine && cd ~/spikes/bea-training-engine
-
-# Clone the two key forks
-git clone https://github.com/BEA-BOLD-EVOLUTION/notebooklm-py.git
-git clone https://github.com/BEA-BOLD-EVOLUTION/training-video-generator.git
-
-# Python env
-python3.11 -m venv .venv
+cd bea-training-engine-spike
+gcloud auth login
+gcloud auth application-default login
+./setup.sh
+cp .env.example .env
+# Edit .env: GCP_PROJECT_NUMBER, NOTEBOOKLM_LOCATION, ANTHROPIC_API_KEY
 source .venv/bin/activate
-pip install -e ./notebooklm-py
-pip install -r ./training-video-generator/requirements.txt
 ```
 
-### Afternoon: NotebookLM auth & first call
+### Afternoon: notebook + sources + kick audio overview
 
-1. Read `notebooklm-py/README.md` end to end. Note the auth method (browser cookies, OAuth, or session token).
-2. Authenticate per its instructions.
-3. Create a new NotebookLM notebook manually in the web UI; upload the 1-3 BEA source docs.
-4. Run the `notebooklm-py` "list notebooks" example to confirm API access works.
-5. Run a "generate audio overview" or "generate study guide" call (whichever the API exposes most cleanly).
+```bash
+python src/spike_orchestrator.py auth
+python src/spike_orchestrator.py create-notebook --title "BEA Training Spike"
+# Drop your source docs into inputs/ first
+python src/spike_orchestrator.py upload-sources --inputs inputs/
+python src/spike_orchestrator.py kick-audio-overview --topic "..."
+```
 
-**End of Day 1 success criterion:** You can programmatically get *some* output from NotebookLM about the BEA source docs.
+**End of Day 1 success criteria:**
 
-**If blocked:** the most likely failure is auth. Document the failure mode and stop — this is a signal that `notebooklm-py` may not be reliable enough for the engine. Decision gate triggered early.
+1. `auth` returns at least one notebook (or empty list) — proves Enterprise API access works
+2. `create-notebook` creates a notebook and `state.json` records its ID
+3. `upload-sources` uploads at least one source — **note: the sources REST endpoint shape is not yet documented in the page we read; finding it is part of the Day 1 work**
+4. `kick-audio-overview` returns success and the audio overview begins async generation
+
+**If blocked:**
+
+- **No Enterprise license**: pause. Either get the license enabled OR switch to the legacy fallback (`USE_LEGACY_NOTEBOOKLM=true`) for the spike only.
+- **Sources endpoint unclear**: spend up to 2 hours digging through Discovery Engine docs. If still unclear, file a question with Google support and proceed to Path C below.
+- **Audio overview API errors**: capture the error and proceed to Path C (Claude direct).
 
 ---
 
-## Day 2 — Slides + script generation, video render
+### Day 1 blocker paths
 
-### Morning: slide deck + narration
+If the Enterprise audio overview path fails or its output isn't retrievable, fall back per this decision tree:
 
-1. Identify which `notebooklm-py` endpoint produces something close to a slide outline or video script. (May need to combine: audio overview → transcript → outline.)
-2. Generate the artifacts for the chosen topic.
-3. Save outputs to `outputs/01-deck-spike/`:
-   - `slides.json` or `slides.md` — slide content
-   - `narration.txt` — what's spoken per slide
-   - `sources.md` — what NotebookLM cited
+| Symptom | Path | What to do |
+|---|---|---|
+| Sources endpoint not findable | **Path B** | Skip NotebookLM entirely. Use Claude with the source corpus + `prompts/slide-outline.md` to produce the deck directly. Lose the audio-overview voice; gain immediate progress. |
+| Audio overview generates but neither audio URL nor transcript is in the response | **Path B** | Same. NotebookLM-generated content that we can't retrieve programmatically isn't useful for an automated pipeline. |
+| Enterprise license unavailable | **Path C** | Use the unofficial `notebooklm-py` fork via `USE_LEGACY_NOTEBOOKLM=true`. Spike only — never production. |
+| Everything works end-to-end | **Path A (default)** | Continue to Day 2 as planned. |
 
-**Sanity check before continuing:** Read the script aloud. Does it sound like BEA, or like generic AI mush? Note your gut reaction — this is data for the decision memo.
+The decision-memo template captures which path you ended up on.
+
+---
+
+## Day 2 — Fetch overview, derive deck via Claude, render video
+
+### Morning: fetch overview + derive deck
+
+```bash
+python src/spike_orchestrator.py fetch-audio-overview
+```
+
+The orchestrator polls until the audio overview finishes (typically a few minutes), then saves the raw response to `outputs/01-audio-overview.json`. **Open this file and inspect it.** What's in there? Audio URL? Transcript text? Just metadata?
+
+If transcript or audio is present:
+- Note the field path; the slide deriver looks for it heuristically but you may need to hand-extract.
+
+If nothing useful is present (just metadata):
+- This is the moment to decide: continue with Path B (Claude only) or escalate to Google support.
+
+Then derive the deck:
+
+```bash
+python src/spike_orchestrator.py derive-deck --topic "How to acknowledge a gifter on TikTok LIVE"
+```
+
+This calls Claude with the transcript (if available) plus the source corpus, producing `outputs/01-deck-spike/deck.json`.
+
+**Sanity check:** Read the script aloud. Does it sound like BEA, or like generic AI mush? Note your gut reaction — this is data for the decision memo. Don't over-iterate prompts — that's a Phase 1 task.
 
 ### Afternoon: video render
 
-1. Read `training-video-generator/README.md`. Understand its expected input format.
-2. Adapt the Day 2 morning outputs to its expected format. Likely needs:
-   - Slide images or markdown
-   - Narration text per slide (or per timestamp)
-   - Brand config (logo path, color palette)
-3. Run the generator end-to-end.
-4. Save the resulting MP4 to `outputs/01-video-spike.mp4`.
+```bash
+python src/spike_orchestrator.py render-video --deck outputs/01-deck-spike/deck.json
+```
 
-**End of Day 2 success criterion:** You have a playable MP4 file.
+Read `forks/training-video-generator/README.md` and fill in the TODOs in `src/video_renderer.py` first. Likely needs:
+
+- Slide JSON in the format the generator expects (adapt deck.json shape if needed)
+- Narration text per slide
+- Brand config (logo path, color palette) from `brand/theme.json`
+
+**End of Day 2 success criterion:** A playable MP4 at `outputs/01-video-spike.mp4`.
 
 ---
 

@@ -1,130 +1,229 @@
-"""Thin wrapper around `notebooklm-py` (forked).
+"""NotebookLM Enterprise REST client.
 
-This module is intentionally a skeleton — the precise API surface depends on
-the fork's actual implementation, which you read at the start of Day 1 of the
-runbook. Fill in the TODOs after reading `forks/notebooklm-py/README.md`.
+Uses the official Google Cloud NotebookLM Enterprise API (Preview / v1alpha)
+documented at:
+    https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks
 
-Design intent:
-- Keep all `notebooklm-py` import / call surface area in this one file
-- The orchestrator imports `NotebookLMClient` and never touches the underlying
-  fork directly
-- When Phase 1 replaces this with a real service, only this file changes
+Auth: OAuth 2.0 bearer token via `gcloud auth print-access-token`. Run
+`gcloud auth application-default login` (or `gcloud auth login`) before using.
+
+Prerequisites:
+- A Google Cloud project with NotebookLM Enterprise license enabled
+- `gcloud` CLI installed and authenticated
+- Project number and region (us / eu / global) set in env
+
+Important caveats (Day 1 verifications — DO NOT SKIP):
+
+1. **Audio retrieval:** The audioOverviews POST docs we read describe creation
+   and deletion only. Whether the audio file (and transcript) can actually be
+   retrieved programmatically is the #1 thing to verify Day 1. If not, the
+   spike either:
+     - Routes around NotebookLM and uses Claude directly with the source
+       corpus (Path A in the runbook), or
+     - Treats NotebookLM as voice-only inspiration and uses Claude for the
+       slide outline + narration (Path B in the runbook).
+
+2. **Sources endpoint:** The sources management API page returned 404 when we
+   looked. Read the official docs to find the actual sources endpoint, or
+   create the notebook with sources via the create call if that's supported.
+
+3. **Preview API:** v1alpha can change. Pin to a specific date in your code
+   comments if you find behavior that breaks between API versions.
 """
 
 from __future__ import annotations
 
 import os
+import subprocess
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-# TODO Day 1: replace with the actual import the fork exposes.
-# Example: `from notebooklm import Client as NLMClient`
-# Read forks/notebooklm-py/README.md to find the right import path.
-# If the fork isn't a proper package, you may need:
-#     sys.path.insert(0, "forks/notebooklm-py")
-#     import notebooklm
-# Document whichever path works once you find it.
+import requests
 
 
 @dataclass
-class NotebookLMClient:
-    """Wrapper that hides the upstream API behind methods the orchestrator calls."""
+class NotebookLMEnterpriseClient:
+    """REST client for NotebookLM Enterprise.
 
-    # Whatever auth artifact the fork needs. Could be a cookie string, an OAuth
-    # token, a path to a cookies.txt file, etc. Pick what matches the README.
-    auth_token: str
+    Build with `from_env()`. The orchestrator should never touch raw HTTP.
+    """
+
+    project_number: str
+    location: str  # one of: us, eu, global
+    _token: str | None = None
+    _token_expiry: float = 0.0
 
     @classmethod
-    def from_env(cls) -> "NotebookLMClient":
-        """Build a client from environment variables.
-
-        TODO Day 1: pick the right env var per the fork's auth method. Common:
-            - NOTEBOOKLM_COOKIE (session cookie string)
-            - GOOGLE_OAUTH_REFRESH_TOKEN (OAuth flow)
-            - NOTEBOOKLM_COOKIES_FILE (path to cookies.txt)
-        Update .env.example to match.
-        """
-        token = (
-            os.environ.get("NOTEBOOKLM_COOKIE")
-            or os.environ.get("GOOGLE_OAUTH_REFRESH_TOKEN")
-            or os.environ.get("NOTEBOOKLM_COOKIES_FILE")
-        )
-        if not token:
+    def from_env(cls) -> "NotebookLMEnterpriseClient":
+        project = os.environ.get("GCP_PROJECT_NUMBER")
+        location = os.environ.get("NOTEBOOKLM_LOCATION", "us")
+        if not project:
             raise RuntimeError(
-                "No NotebookLM auth found in env. See .env.example and "
-                "forks/notebooklm-py/README.md for which env var the fork uses."
+                "GCP_PROJECT_NUMBER not set. See .env.example. Get it from "
+                "https://console.cloud.google.com/projectnumber"
             )
-        return cls(auth_token=token)
+        if location not in {"us", "eu", "global"}:
+            raise RuntimeError(f"NOTEBOOKLM_LOCATION must be us|eu|global, got {location!r}")
+        return cls(project_number=project, location=location)
 
-    # ---- core methods the orchestrator calls ----
+    # ---- auth ----
 
-    def list_notebooks(self) -> list[str]:
-        """Return a list of notebook IDs or names visible to the authenticated user.
+    def _access_token(self) -> str:
+        """Return a valid bearer token, refreshing via gcloud if expired."""
+        now = time.time()
+        if self._token and now < self._token_expiry:
+            return self._token
+        result = subprocess.run(
+            ["gcloud", "auth", "print-access-token"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        self._token = result.stdout.strip()
+        self._token_expiry = now + 3000  # ~50 min, well under the 60-min lifetime
+        return self._token
 
-        Day 1 success criterion: this method returns non-empty (or empty but no
-        error) — proves the auth path works end-to-end.
+    def _headers(self) -> dict[str, str]:
+        return {
+            "Authorization": f"Bearer {self._access_token()}",
+            "Content-Type": "application/json",
+        }
 
-        TODO: implement using the fork's list-notebooks call.
+    def _base_url(self) -> str:
+        return (
+            f"https://{self.location}-discoveryengine.googleapis.com/v1alpha"
+            f"/projects/{self.project_number}/locations/{self.location}"
+        )
+
+    # ---- notebook lifecycle ----
+
+    def list_recent_notebooks(self) -> list[dict[str, Any]]:
+        """notebooks.listRecentlyViewed — Day 1 auth-check method."""
+        resp = requests.get(
+            f"{self._base_url()}/notebooks:listRecentlyViewed",
+            headers=self._headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json().get("notebooks", [])
+
+    def create_notebook(self, title: str) -> dict[str, Any]:
+        """notebooks.create — returns the created notebook resource."""
+        resp = requests.post(
+            f"{self._base_url()}/notebooks",
+            headers=self._headers(),
+            json={"title": title},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_notebook(self, notebook_id: str) -> dict[str, Any]:
+        """notebooks.get."""
+        resp = requests.get(
+            f"{self._base_url()}/notebooks/{notebook_id}",
+            headers=self._headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    # ---- sources (TODO Day 1: verify endpoint shape) ----
+
+    def add_source(self, notebook_id: str, source_path: Path) -> dict[str, Any]:
+        """Upload a source document into a notebook.
+
+        TODO Day 1: the sources REST endpoint shape isn't yet documented in the
+        page we fetched (it returned 404 on a guess). Find the correct endpoint
+        in the Google Cloud docs index for NotebookLM Enterprise and fill in.
+
+        Likely shape based on Discovery Engine conventions:
+            POST /notebooks/{notebook_id}/sources
+            body: { "displayName": "...", "content": {...} }
+
+        For PDFs, the content may need to be uploaded to a separate Discovery
+        Engine document store first, then referenced.
         """
-        raise NotImplementedError("TODO Day 1: implement via notebooklm-py")
+        raise NotImplementedError(
+            "TODO Day 1: implement sources upload. See https://docs.cloud.google.com/"
+            "gemini/enterprise/notebooklm-enterprise/docs/ for the sources endpoint."
+        )
 
-    def create_or_get_notebook(self, name: str) -> str:
-        """Create a notebook with the given name, or return an existing one.
+    def list_sources(self, notebook_id: str) -> list[dict[str, Any]]:
+        """List sources attached to a notebook.
 
-        Returns the notebook ID (whatever string identifier the fork uses).
-
-        TODO: implement.
+        TODO Day 1: confirm endpoint shape and fill in.
         """
-        raise NotImplementedError("TODO Day 1: implement via notebooklm-py")
+        raise NotImplementedError("TODO Day 1: implement sources list.")
 
-    def upload_source(self, notebook_id: str, doc_path: Path) -> None:
-        """Upload a single source document to the notebook.
+    # ---- audio overview (the closest thing to a 'generate' call) ----
 
-        TODO: implement. Fork may expose this as `upload_pdf`, `add_source`,
-        `upload_file`, or similar — check the README.
-        """
-        raise NotImplementedError("TODO Day 1: implement via notebooklm-py")
-
-    def generate_overview(self, notebook_id: str) -> dict[str, Any]:
-        """Day 1 EOD: produce *some* generated output about the uploaded sources.
-
-        Could be: audio overview, study guide, briefing doc, FAQ, etc. Pick the
-        one with the cleanest API. The point is to prove generation works.
-
-        Returns a dict (whatever structure the fork returns).
-
-        TODO: implement.
-        """
-        raise NotImplementedError("TODO Day 1: implement via notebooklm-py")
-
-    def generate_deck(
+    def create_audio_overview(
         self,
         notebook_id: str,
-        topic: str,
-        slide_count: int,
-        target_seconds: int,
-        slide_outline_prompt: str,
-        narration_prompt: str,
+        source_ids: list[str],
+        episode_focus: str,
+        language_code: str = "en-US",
     ) -> dict[str, Any]:
-        """Day 2: produce a slide deck + narration script for the topic.
+        """audioOverviews.create — kicks off async generation.
 
-        Likely a two-step process:
-        1. Call NotebookLM with the slide-outline prompt + topic → get an
-           outline grounded in the uploaded sources.
-        2. For each slide, expand to narration text using the narration prompt.
-
-        Return shape (suggested — adapt to fit the renderer):
-            {
-              "topic": "...",
-              "target_seconds": 90,
-              "slides": [
-                {"index": 1, "title": "...", "bullets": [...], "narration": "..."},
-                ...
-              ],
-              "sources_cited": [...]
-            }
-
-        TODO: implement.
+        Per the docs: "It takes a few minutes to generate an audio overview."
+        Returns immediately with a status; poll get_audio_overview() until
+        ready.
         """
-        raise NotImplementedError("TODO Day 2: implement via notebooklm-py")
+        resp = requests.post(
+            f"{self._base_url()}/notebooks/{notebook_id}/audioOverviews",
+            headers=self._headers(),
+            json={
+                "sourceIds": [{"id": sid} for sid in source_ids],
+                "episodeFocus": episode_focus,
+                "languageCode": language_code,
+            },
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def get_audio_overview(self, notebook_id: str) -> dict[str, Any]:
+        """Get the audio overview status / payload.
+
+        TODO Day 1: verify this endpoint exists and what it returns. The audio
+        URL or transcript may or may not be in the response — that's THE
+        critical Day 1 question. If neither is retrievable via API, see the
+        runbook for the workaround paths.
+        """
+        resp = requests.get(
+            f"{self._base_url()}/notebooks/{notebook_id}/audioOverviews/default",
+            headers=self._headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def wait_for_audio_overview(
+        self, notebook_id: str, timeout_seconds: int = 600, poll_seconds: int = 15
+    ) -> dict[str, Any]:
+        """Poll get_audio_overview until ready or timeout."""
+        deadline = time.time() + timeout_seconds
+        while time.time() < deadline:
+            payload = self.get_audio_overview(notebook_id)
+            # TODO Day 1: confirm what field signals 'ready'. Likely 'state' or
+            # similar. Adjust the comparison to match the actual response.
+            state = payload.get("state") or payload.get("status")
+            if state in {"READY", "SUCCEEDED", "DONE"}:
+                return payload
+            if state in {"FAILED", "ERROR"}:
+                raise RuntimeError(f"Audio overview failed: {payload}")
+            time.sleep(poll_seconds)
+        raise TimeoutError(f"Audio overview not ready after {timeout_seconds}s")
+
+    def delete_audio_overview(self, notebook_id: str) -> None:
+        """Delete the audio overview (per docs: only one 'default' per notebook)."""
+        resp = requests.delete(
+            f"{self._base_url()}/notebooks/{notebook_id}/audioOverviews/default",
+            headers=self._headers(),
+            timeout=30,
+        )
+        resp.raise_for_status()

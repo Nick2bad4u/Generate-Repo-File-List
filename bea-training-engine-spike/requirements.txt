@@ -7,6 +7,9 @@ click>=8.1.7
 rich>=13.7.1
 pydantic>=2.7.0
 
+# REST client for NotebookLM Enterprise API
+requests>=2.32.0
+
 # For reading source documents in inputs/
 pypdf>=4.2.0
 markdown-it-py>=3.0.0

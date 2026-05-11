@@ -24,54 +24,68 @@ This directory is the **starter kit** for the BEA Training Engine Phase 0 spike,
 
 - Python 3.11+
 - Git
-- A Google account with NotebookLM access
+- **Google Cloud project with NotebookLM Enterprise license enabled** ([setup docs](https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks))
+- `gcloud` CLI installed and authenticated (`gcloud auth login`)
+- An Anthropic API key (Claude does the slide derivation)
 - BEA brand assets (logo PNG, brand colors, fonts) — see `brand/README.md`
 - 1-3 BEA source documents on the spike topic (Markdown or PDF)
 - The spike topic chosen: default is **"How to acknowledge a gifter on TikTok LIVE"**
+
+> **Note on Enterprise license:** The official NotebookLM API is in Preview and requires a NotebookLM Enterprise license on your Google Cloud project. If you don't have it yet, the kit supports a fallback path using the unofficial `notebooklm-py` fork — set `USE_LEGACY_NOTEBOOKLM=true` before running `setup.sh`. Either way, treat the Enterprise API as the production target.
 
 ---
 
 ## 15-minute setup
 
 ```bash
-# 1. From this directory
+# 1. Authenticate gcloud (if you haven't already)
+gcloud auth login
+gcloud auth application-default login
+
+# 2. From this directory
 ./setup.sh
 
-# 2. Copy and fill in env vars
+# 3. Copy and fill in env vars
 cp .env.example .env
-# Edit .env with your Anthropic key (for orchestration) and any NotebookLM creds
+# Edit .env: GCP_PROJECT_NUMBER, NOTEBOOKLM_LOCATION, ANTHROPIC_API_KEY
 
-# 3. Activate the Python venv
+# 4. Activate the Python venv
 source .venv/bin/activate
 
-# 4. Place your source docs in inputs/
-mkdir -p inputs && cp /path/to/your/bea-docs/*.{md,pdf} inputs/
+# 5. Place your source docs in inputs/
+cp /path/to/your/bea-docs/*.{md,pdf} inputs/
 
-# 5. Place brand assets
-# See brand/README.md
+# 6. Fill in brand/theme.json + drop logo.png
+#    See brand/README.md
 ```
 
 ---
 
 ## The three spike days
 
-Each day's tasks come straight from the runbook. The orchestrator skeleton (`src/spike_orchestrator.py`) gives you the structure; you fill in the API specifics after reading `notebooklm-py/README.md` and `training-video-generator/README.md`.
+Each day's tasks come straight from the runbook. The orchestrator (`src/spike_orchestrator.py`) walks through the official NotebookLM Enterprise API + Claude flow.
 
-### Day 1 — Setup + first NotebookLM call
+### Day 1 — Setup, notebook, sources, kick audio overview
 
 ```bash
 python src/spike_orchestrator.py auth
-python src/spike_orchestrator.py upload --inputs inputs/
-python src/spike_orchestrator.py test-generate
+python src/spike_orchestrator.py create-notebook --title "BEA Training Spike"
+python src/spike_orchestrator.py upload-sources --inputs inputs/
+python src/spike_orchestrator.py kick-audio-overview \
+    --topic "How to acknowledge a gifter on TikTok LIVE"
 ```
 
-End-of-day deliverable: programmatic output from NotebookLM about your source docs.
+End-of-day deliverable: notebook created with sources, audio overview generation kicked off (it takes a few minutes). The CRITICAL Day 1 verification: confirm we can actually retrieve the audio + transcript via API. See the runbook for fallback paths if not.
 
-### Day 2 — Slides + script + video
+### Day 2 — Fetch overview, derive deck via Claude, render video
 
 ```bash
-python src/spike_orchestrator.py generate-deck --topic "How to acknowledge a gifter on TikTok LIVE"
-python src/spike_orchestrator.py render-video --deck outputs/01-deck-spike/deck.json
+python src/spike_orchestrator.py fetch-audio-overview
+# inspect outputs/01-audio-overview.json carefully
+python src/spike_orchestrator.py derive-deck \
+    --topic "How to acknowledge a gifter on TikTok LIVE"
+python src/spike_orchestrator.py render-video \
+    --deck outputs/01-deck-spike/deck.json
 ```
 
 End-of-day deliverable: `outputs/01-video-spike.mp4`.
@@ -79,7 +93,7 @@ End-of-day deliverable: `outputs/01-video-spike.mp4`.
 ### Day 3 — Evaluate + decide
 
 ```bash
-# Open the decision memo template
+cp evaluation/decision-memo-template.md evaluation/decision-memo.md
 $EDITOR evaluation/decision-memo.md
 ```
 
@@ -154,5 +168,6 @@ Document the failure in `evaluation/decision-memo.md` and propose alternatives (
 |---|---|
 | Full design spec | `../docs/bea-training-engine-spec.md` |
 | Detailed runbook | `../docs/bea-training-engine-spike-runbook.md` |
-| Fork: NotebookLM Python API | https://github.com/BEA-BOLD-EVOLUTION/notebooklm-py |
+| **NotebookLM Enterprise API** (primary) | https://docs.cloud.google.com/gemini/enterprise/notebooklm-enterprise/docs/api-notebooks |
 | Fork: Training Video Generator | https://github.com/BEA-BOLD-EVOLUTION/training-video-generator |
+| Fork: notebooklm-py (legacy fallback only) | https://github.com/BEA-BOLD-EVOLUTION/notebooklm-py |
