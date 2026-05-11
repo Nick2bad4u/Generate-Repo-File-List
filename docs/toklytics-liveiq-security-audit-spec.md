@@ -20,7 +20,7 @@
 - File uploads (CSVs, screenshots feeding into the analytics layer)
 - Per-creator historical reports
 
-Stripe payouts live in a separate repo — `KLING-Director` — so payment-flow audit items move to a parallel spec (see §11). The LiveIQ audit still covers any LiveIQ → KLING integration boundary (e.g., displaying payout balances pulled from KLING), but not Stripe webhook handling itself.
+Stripe lives in a separate, **completely independent** application — `KLING-Director` — so all payment-flow audit items move to a parallel spec (see §11). LiveIQ and KLING-Director do not integrate, share data, or share auth. The LiveIQ audit covers no payment-related surface.
 
 Because everything is consolidated into one app, the **blast radius of a breach is larger** than it would have been across three smaller portals. One bug here can expose every creator. A breach would be reputationally fatal for an agency whose value prop depends on creator trust. A pre-launch audit (or pre-next-major-release audit, if LiveIQ is already live) is a fixed-cost, fixed-time investment that reduces this risk.
 
@@ -33,12 +33,12 @@ This is **not** a continuous penetration testing program. It's a one-time gated 
 | In scope | Out of scope (this pass) |
 |---|---|
 | Toklytics-LiveIQ web app + APIs | Cloudflare config audit, full IaC review |
-| Authentication + session management | Continuous bug bounty (separate decision, post-launch) |
-| Per-region tenancy + data residency handling | Underlying TikTok platform behavior |
-| LiveIQ → KLING-Director integration boundary (if any) | Stripe internals (covered in KLING-Director audit — see §11) |
+| Authentication + session management | KLING-Director (separate app, separate audit — see §11) |
+| Per-region tenancy + data residency handling | Anything payment-related (KLING-Director is the only app with Stripe) |
 | File uploads (CSV, screenshots) | The dead portal repos (archive them — see §10) |
 | Live realtime coaching data path | Social engineering / phishing simulations |
-| Role-based access (if staff use the same app) | Full PCI-DSS audit (Stripe Checkout keeps you out of scope by design) |
+| Role-based access (if staff use the same app) | Continuous bug bounty (separate post-launch decision) |
+| TikTok API integration (if any) | Underlying TikTok platform behavior |
 
 ---
 
@@ -66,7 +66,6 @@ The two critical risks for this kind of app are almost always (a) cross-tenant d
 - [ ] Inventory every endpoint (REST/GraphQL/tRPC)
 - [ ] Inventory every public-facing route
 - [ ] Map all third-party integrations (TikTok API, Cloudflare, Supabase, NotebookLM if connected, etc.)
-- [ ] Map all internal-service integrations — especially LiveIQ → KLING-Director if LiveIQ surfaces payout data
 - [ ] Document the auth flow end-to-end (sequence diagram)
 - [ ] Document the tenancy model — how the app distinguishes UK vs US vs CA creators at the DB / API layer
 - [ ] List every place PII flows (input → storage → display → logs)
@@ -118,13 +117,6 @@ Focus on what scanners miss:
 - [ ] Data deletion endpoint exists (GDPR Article 17, CCPA right to delete)
 - [ ] Retention policy documented and enforced (auto-purge inactive accounts after N years)
 - [ ] Data residency: UK/EU creator data stored in EU region if claimed in privacy policy
-
-#### LiveIQ → KLING-Director integration (Stripe is in KLING, not here)
-- [ ] If LiveIQ calls KLING for payout data: server-to-server auth uses a service token, not a creator session token
-- [ ] LiveIQ never displays raw Stripe payout IDs or full account numbers
-- [ ] Amounts displayed in LiveIQ always come from KLING's API, never computed client-side
-- [ ] If a creator can trigger a payout from LiveIQ UI: that endpoint is rate-limited and tied to the authenticated creator's KLING account, with cross-creator IDOR tests applied
-- [ ] *(Stripe internals — webhook signatures, idempotency, Connect flows, PCI — covered in the KLING-Director audit spec, §11)*
 
 #### File uploads (CSVs, screenshots)
 - [ ] Server-side MIME type + magic byte validation, not just extension
@@ -250,22 +242,8 @@ The remaining items are housekeeping — the security-critical step (credential 
 
 ---
 
-## 11. Adjacent audit candidate: KLING-Director
+## 11. Sibling audit: KLING-Director
 
-`KLING-Director` holds the Stripe integration. Payment-handling code carries fundamentally different risk than analytics code: financial loss, chargeback liability, PCI scope, regulatory exposure. It deserves its own audit pass with a tighter focus than the LiveIQ pass.
+`KLING-Director` is a **completely separate application** with its own audit spec at `kling-director-security-audit-spec.md`. It holds all Stripe surfaces (subscription billing + Connect Express affiliate payouts), AI cost exposure (Anthropic, Gemini), tier-gating, and file-upload concerns. None of that surface exists in LiveIQ.
 
-**Suggested scope for a KLING-Director audit (separate spec, draft TBD):**
-
-- Stripe webhook signature verification (the #1 most commonly-missed payment bug)
-- Webhook idempotency (no duplicate payouts on retry)
-- Amounts always computed server-side
-- Stripe Connect flow if used for creator payouts (separate threat model)
-- API key handling, key rotation, restricted-key usage
-- Audit log of every state-changing payment event
-- Disputes / chargebacks handling
-- Refund flow authorization
-- PCI scope verification (Stripe Checkout / Elements only — no PAN ever in your servers)
-
-Recommend running this audit in parallel with the LiveIQ audit, with a single engineer if the codebases are small enough, or two engineers in parallel otherwise. Same `reaper` setup, same Semgrep config, different threat model.
-
-If useful, I can draft a `kling-director-security-audit-spec.md` companion doc — just ask.
+The two audits can run in parallel with one engineer per audit, or sequentially with the same engineer (1-week gap between to context-switch cleanly). Shared infrastructure: one `reaper` setup with two separate replay configs, shared Semgrep base config extended per app.
