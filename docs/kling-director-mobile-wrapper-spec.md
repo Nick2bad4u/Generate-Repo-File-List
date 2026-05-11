@@ -1,28 +1,22 @@
 # KLING-Director Mobile Wrapper — Plan
 
-> Working name: **kling-mobile** (placeholder — depends on whether this folds into liveiq-mobile, see §3)
-> Status: Draft v0.1
+> Working name: **kling-mobile**
+> Status: Draft v0.2
 > Target: iOS + Android wrapper around `KLING-Director` ([repo](https://github.com/BEA-BOLD-EVOLUTION/KLING-Director))
 > Tooling lead: `full_web_converter_To_flutter_App` (forked)
 > Companion to: `toklytics-liveiq-mobile-wrapper-spec.md`, `kling-director-security-audit-spec.md`
 
-> **Working assumptions** (please correct):
-> - KLING-Director is a creator-facing TypeScript web app
-> - Creators use it to do something involving payments via Stripe (Kling AI video generation? Campaign management? Payout requests?)
-> - It has its own authentication, separate from or shared with LiveIQ
-> - It's accessed from mobile devices regularly enough that a native wrapper would matter
->
-> Several decisions in this spec hinge on these assumptions. The Phase 0 spike + your answers to §10 questions will firm them up.
+> **Confirmed scope (from README):** KLING-Director is a self-service SaaS — an AI-powered prompt compiler for Kling video generation. Users sign up via Supabase Auth, pay via Stripe subscription ($5.99 Director / $9.99 Director Pro / $0 VIP / $0 BEA Creator partner / 7-day free trial). It uses Claude Sonnet 4 + Gemini 2.0 Flash. Pro tier offers video analysis (up to 100MB uploads). It has its own affiliate program with Stripe Connect Express for 15% commission payouts. The audience is broader than LiveIQ creators — anyone can sign up.
 
 ---
 
 ## 1. Why this exists
 
-If KLING-Director is creator-facing and money-handling, a mobile app moves the needle in ways that matter more than for LiveIQ:
+KLING-Director is a self-service SaaS that creators and prompt engineers will use heavily from their phones (videos are watched, generated, and managed mostly on mobile). A native shell delivers three concrete wins:
 
-1. **Push notifications for payment events** — payout posted, refund issued, dispute opened, account verification needed. Payment events have higher emotional weight for creators than analytics updates, so push delivers outsized value here.
-2. **Biometric auth on every money-touching screen** — fingerprint/Face ID friction at the right moment is *desirable* for payment apps. Reduces fraud risk on lost/stolen devices.
-3. **App store credibility for a money-handling tool** — creators are more cautious about typing financial info into a browser bookmark than a downloaded app. The store presence directly improves conversion on payment setup.
+1. **Push for billing + AI events** — "Trial ending in 2 days", "Video analysis complete", "Affiliate payout posted", "Subscription renewal failed". Each is high-value and time-sensitive.
+2. **Native file picker for video uploads** — the `/analyze` Pro feature takes 100MB videos. The native picker (camera roll, files app) is dramatically better UX than a WebView file input.
+3. **App store discoverability** — KLING-Director is a paid SaaS aimed at growth. Store listings are a real acquisition channel for "AI video tool" searches.
 
 ---
 
@@ -45,100 +39,102 @@ If KLING-Director is creator-facing and money-handling, a mobile app moves the n
 
 ---
 
-## 3. **Key architectural decision: standalone app or fold into LiveIQ mobile?**
+## 3. Key architectural decision: standalone, not unified
 
-This is the highest-leverage decision in this spec.
+v0.1 of this spec recommended folding KLING into a unified `bea-mobile` app with LiveIQ. The README changes that calculus. **Revised recommendation: standalone `kling-mobile` app.**
 
-### Option A: Standalone `kling-mobile` app
-**Pros:**
-- Cleaner store listing (payments-focused brand vs analytics-focused)
-- Different update cadence from LiveIQ
-- Failure isolation (a KLING-mobile crash doesn't take down LiveIQ)
-- Different audiences if KLING is creator-only and LiveIQ is broader
+### Why standalone wins here
+- **Different audiences.** LiveIQ is for BEA's contracted creators. KLING-Director is a public SaaS — anyone can sign up. Most KLING users are not BEA creators. Bundling them in one app means most KLING users carry a dead LiveIQ tab they'll never use.
+- **Different brand.** KLING-Director has its own product identity, pricing, affiliate program. It's a growth-channel product. LiveIQ is an agency tool. Distinct positioning calls for distinct store listings.
+- **Different store category.** KLING fits "AI tools / Creativity" categories where discoverability matters; LiveIQ fits "Business / Productivity". Separate listings each rank in their best category.
+- **Different update cadences.** KLING ships features rapidly (the README shows monthly improvements). LiveIQ is more stable. Coupling them slows KLING.
+- **App size.** A single SaaS app loads fast. A combined app with two embedded web experiences is heavier and slower to launch.
 
-**Cons:**
-- Two store listings to maintain (Apple + Google × 2 = 4 listings)
-- Two install prompts to creators ("download our other app too")
-- Duplicate native infrastructure (auth shell, push, deep links)
-- Higher ongoing maintenance cost
-- Apple/Google may scrutinize "another wrapper from same publisher" more
+### Cost of standalone
+- Two store listings to manage (manageable — they're separate brands)
+- Duplicate native infrastructure (auth shell, push token, deep-link domain) — actual code overhead is ~500 LOC, not significant
+- Two install prompts — but only ever to overlapping users (BEA creators), who get a unified onboarding pitch anyway
 
-### Option B: Single `bea-mobile` app, tabbed UI hosting both LiveIQ + KLING
-**Pros:**
-- One install for creators
-- Shared auth shell, push token, deep-link domain
-- One store listing, simpler ops
-- Better creator UX — one place to do everything BEA
-- Aligns with "Toklytics-LiveIQ absorbed the portals" consolidation pattern you already chose
+### Decision
+Standalone `kling-mobile` app, branded as "Kling Director" or similar (not "BEA Kling Director" — keep the brand clean for public market).
 
-**Cons:**
-- Larger app size
-- Cross-team coordination on releases (whoever owns LiveIQ + whoever owns KLING share the mobile release train)
-- One bug can block the other's update
-
-**Recommendation: Option B**, for the same reason you consolidated the three portals into LiveIQ — operational simplicity wins for an agency at your scale. The cons are real but manageable. The mobile shell becomes a routing layer that loads the right web app based on tab selection.
-
-The rest of this spec assumes **Option B**, with a `kling-mobile` repo only if you explicitly choose Option A.
+The LiveIQ mobile wrapper stays separate as `liveiq-mobile`.
 
 ---
 
-## 4. Architecture (assuming Option B)
+## 4. Architecture
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│  FLUTTER APP — bea-mobile (single binary)                    │
-│  - Bottom-tab navigator: [LiveIQ] [KLING] [Profile]          │
+│  FLUTTER APP — kling-mobile (single binary)                  │
 │  - Native auth shell (biometric on app open + sensitive ops) │
-│  - Push notification handler (routes by event source)        │
-│  - Deep link router (URLs resolve to a tab + path)           │
-│  - Two WebView hosts (one per tab, kept warm)                │
+│  - Push notification handler                                 │
+│  - Deep link router                                          │
+│  - WebView host (flutter_inappwebview) loading KLING web     │
+│  - Native file picker bridged to WebView for /analyze upload │
 └──────────────────────────────┬───────────────────────────────┘
                                │ JS bridge
-                ┌──────────────┴──────────────┐
-                ↓                             ↓
-   ┌────────────────────────┐   ┌────────────────────────────┐
-   │  Toklytics-LiveIQ      │   │  KLING-Director            │
-   │  (analytics + coach)   │   │  (payments + ?)            │
-   └────────────────────────┘   └────────────────────────────┘
+                               ↓
+              ┌────────────────────────────────┐
+              │  KLING-Director (Next.js web)  │
+              │  Hosted on Vercel              │
+              │  - Detects "in Kling app" UA   │
+              │  - Hides web-only chrome       │
+              │  - Calls native bridge for     │
+              │    upload, biometric, push     │
+              └────────────────────────────────┘
 ```
 
 **WebView lifecycle:**
-- Two WebViews, kept alive in memory (avoids reload pain when switching tabs)
-- Each has its own cookie store (sessions don't leak across tabs)
-- App brings the foreground tab's WebView to the front, suspends the other after N minutes inactive
+- Single WebView, kept warm across app lifecycle
+- Session cookies persist (Supabase Auth)
+- Hard reload on tier-change webhook (so feature gates refresh)
 
-**JS bridge surface (extends the LiveIQ-only bridge):**
-- `bea.registerPush()` — shared
-- `bea.requestBiometric(purpose)` — gated by `purpose`; the WebView passes "view_payout" or "trigger_payout" so the native shell can decide if a fresh prompt is needed
-- `bea.openExternal(url)` — shared
-- `bea.lockApp()` — KLING calls this if it detects unusual activity (forces re-auth on resume)
-- `bea.requireFreshAuth(threshold_seconds)` — KLING requests a re-prompt if last biometric is older than N seconds before showing a money-affecting screen
+**JS bridge surface:**
+- `kling.registerPush()` — register FCM token with backend after sign-in
+- `kling.requestBiometric(purpose)` — gated by `purpose` ("view_billing" or "manage_subscription" or "open_affiliate_dashboard")
+- `kling.openExternal(url)` — opens non-app URLs in system browser
+- `kling.requireFreshAuth(threshold_seconds)` — KLING calls before showing billing/payout screens
+- `kling.pickFile(constraints)` — opens native file picker for `/analyze` 100MB video upload. Returns a temp URL the WebView can POST. Critical UX win.
+- `kling.lockApp()` — forces re-auth on resume if anomaly detected
 
-The `requireFreshAuth` mechanism is the security teeth: even with a valid session cookie, the app re-prompts biometric before showing payout balances or initiating new payouts.
+The `pickFile` bridge is the single biggest UX value-add over plain web — WebView file inputs are notoriously janky for large video files. Going native here is worth the 50-100 LOC.
 
 ---
 
 ## 5. Module breakdown
 
-### 5.1 Flutter shell additions vs the LiveIQ-only spec
-- Tab navigation
-- Per-tab WebView management
-- Push routing logic (event payload determines which tab opens)
-- Bridge surface extended with `requireFreshAuth` and `lockApp`
+### 5.1 Flutter shell
+- Built from `full_web_converter_To_flutter_App`
+- Replace generic WebView with `flutter_inappwebview` for the JS bridge
+- Add `firebase_messaging` for push
+- Add `local_auth` for biometrics
+- Add `app_links` for deep linking
+- Add `file_picker` + `image_picker` packages for native upload picker
 
 ### 5.2 KLING-Director web app additions
-- Detect UA: `BEA-Mobile/1.0`
-- Apply `.in-app` CSS class
-- Call `bea.requireFreshAuth(...)` before rendering money-affecting screens
-- Expose `bea.registerPush()` after first sign-in
-- Test mode visual indicator that's bigger than usual (mobile screen real estate makes test/live confusion riskier)
+- Detect UA: `Kling-Mobile/1.0`
+- Apply `.in-app` CSS class to hide browser back, footer, marketing chrome
+- Replace `<input type="file">` on `/analyze` with `kling.pickFile()` bridge call when in-app
+- Call `kling.requireFreshAuth(...)` before rendering `/billing` and affiliate dashboard
+- Expose `kling.registerPush()` after first sign-in
+- Stripe Checkout: render in-app for subscription purchase; verify the redirect-back from Stripe lands on a route the WebView intercepts cleanly (this is the #1 spike risk)
+- Test mode visual indicator that's prominent on mobile (banner across the top, distinct color)
 
 ### 5.3 Push notification backend
-- Worker / Edge Function that receives payment events from KLING (via Stripe webhooks or internal events)
-- Looks up creator's FCM tokens
+- Worker / Edge Function (likely Vercel Edge or Railway service per stack)
+- Receives events from:
+  - Stripe subscription webhooks → "Trial ending", "Payment failed", "Subscription renewed"
+  - Stripe Connect webhooks → "Affiliate payout posted"
+  - AI service callbacks → "Video analysis complete"
+- Looks up user's FCM tokens (stored on sign-in)
 - Sends push with deep-link target
 
-**Critical:** push payloads must never contain financial amounts in cleartext (notification preview on locked screen = info disclosure). Use "Payout posted" with a "Tap to view" pattern instead.
+**Push payload rules (privacy):**
+- Never include dollar amounts in cleartext (lock-screen preview = info disclosure on a shared device)
+- Use "Payout posted — tap to view" pattern
+- Affiliate-specific events never expose other affiliates' info
+- Trial-ending push lands on the billing page deep-link, not a generic URL
 
 ---
 
@@ -162,35 +158,38 @@ Same as LiveIQ mobile spec, with payment-specific additions:
 
 ## 7. Phased rollout
 
-### Phase 0 — Spike (3-5 days, longer than LiveIQ spike)
+### Phase 0 — Spike (3-5 days)
 
-Goal: Prove the WebView UX works for KLING's specific screens — especially Stripe Checkout flows, KYC document uploads, and any test-vs-live mode indicators.
+Goal: Prove the WebView UX works for KLING's three trickiest paths.
 
 - Clone fork
 - Configure with KLING staging URL
-- Test: Stripe Checkout redirect-and-return inside WebView
-- Test: file upload (KYC docs if applicable)
-- Test: deep-link return from external auth (e.g., Stripe Connect onboarding)
-- Test: payment confirmation flow round-trip
+- **Test 1 (most critical): Stripe Checkout subscription flow inside WebView.** Subscribe to Director tier, return to app, confirm session and tier reflected. If this breaks, fall back to opening Checkout in a Custom Tab (Android) / SFSafariViewController (iOS).
+- **Test 2: Stripe Connect Express affiliate onboarding.** This is the highest-risk WebView path — Connect onboarding redirects through Stripe-hosted screens and back, and historically breaks inside WebViews. Confirm the affiliate onboard-and-return works cleanly.
+- **Test 3: 100MB video upload via `/analyze`.** Use the native `kling.pickFile()` bridge. Confirm a real 90MB MP4 uploads, the analysis completes, results render. Verify the WebView doesn't OOM during upload progress.
+- Side tests: biometric re-prompt timing, deep-link return paths, test-mode banner visibility.
 
 **Decision gates:**
-- Does Stripe Checkout work cleanly in the WebView, including the redirect back? (Common failure mode: redirect drops the session.)
-- Does the biometric re-prompt fire at the right moments?
-- Does the deep-link return-from-Stripe-Connect work? (Notorious for breaking inside WebViews.)
+- Stripe Checkout works cleanly in WebView with redirect-back, OR fallback to Custom Tabs works → continue.
+- Stripe Connect Express onboarding works → continue. If it breaks: design a "complete onboarding on desktop" out-of-band flow as a hard fallback.
+- 100MB video upload completes without crash → continue.
+
+If any of the three fails and has no clean fallback, this spike is the decision gate that ends the project — kling-mobile would be hampered without these flows.
 
 ---
 
 ### Phase 1 — MVP (3-4 weeks)
 
-- [ ] LiveIQ tab functional (per existing mobile spec)
-- [ ] KLING tab functional
-- [ ] BEA brand theming (shared)
+- [ ] Single WebView host for KLING staging then prod URL
+- [ ] Kling Director brand theming (logo, splash, app icon)
 - [ ] Native auth shell with biometric lock
-- [ ] `requireFreshAuth` enforced on money-screens
-- [ ] FCM push for payment events
-- [ ] Deep linking with tab routing
+- [ ] `requireFreshAuth` enforced on `/billing` and affiliate dashboard
+- [ ] Native `pickFile` bridge for `/analyze` video upload
+- [ ] FCM push for subscription + Connect + AI completion events
+- [ ] Deep linking (subscription emails / referral codes)
 - [ ] Offline screen
-- [ ] Test/live mode visual indicator coordinated with KLING web
+- [ ] Test/live mode visual indicator
+- [ ] Stripe Checkout fallback (Custom Tabs / SFSafariViewController) if Phase 0 says needed
 
 **Deliverable:** TestFlight + Play Internal Testing builds.
 
@@ -225,41 +224,30 @@ This wrapper inherits all of `kling-director-security-audit-spec.md`'s findings 
 
 | Risk | Mitigation |
 |---|---|
-| Stripe Checkout breaks in WebView | Phase 0 spike answers this. Fallback: open Checkout in external browser via SFSafariViewController / Custom Tabs. |
+| Stripe Checkout breaks in WebView | Phase 0 spike answers this. Fallback: Custom Tabs (Android) / SFSafariViewController (iOS). |
+| Stripe Connect Express onboarding breaks in WebView | Phase 0 spike answers this. Fallback: send affiliates to a desktop-only onboarding URL via email — degraded but functional. |
+| 100MB video upload OOM / crash | Use native picker + chunked upload, never load full file into WebView memory. |
 | Push payload leaks info on lock screen | "Tap to view" pattern; no amounts in payload. |
-| One bug blocks both tabs' updates | Mitigated by careful release management; LiveIQ + KLING teams sync on mobile release schedule. |
-| Apple/Google scrutinize money-handling apps more | Lean into compliance: clear privacy policy, transparent fee structure, no dark patterns. |
-| Creators confuse test mode for live | Giant visual indicator in test mode (banner, color band). |
+| App store rejection for "minimum functionality" | Native push, biometric, file picker, deep links = enough native value to clear the bar. |
+| Apple/Google scrutinize subscription apps more | Pre-built compliance: clear privacy policy, subscription terms on the listing, no dark patterns, easy cancel from in-app billing portal link. |
+| Trial-ending push annoyance | Limit to one per trial, send 48 hours before expiry, allow disable from settings. |
 
 **Open questions:**
 
-1. **Confirm KLING-Director's purpose.** I'm guessing payments orchestration; if it's something else (campaign management, AI video generation orchestration), some scope items shift.
-2. **Standalone app or unified bea-mobile app?** §3 recommendation is unified — confirm or override.
-3. Is KLING-Director creator-facing, staff-only, or both?
-4. Does KLING-Director share auth/sessions with LiveIQ, or are they separate logins? (Affects the bridge design.)
-5. Stripe Connect, standard Charges, or both? (Affects the WebView flow for onboarding screens.)
-6. Test mode used regularly, or only for development? (Affects the visual-indicator requirement.)
+Most prior v0.1 questions are now answered by the README. Remaining:
+
+1. Is KLING-Director already live with active subscriptions and affiliate payouts, or pre-launch / soft-launch?
+2. Is mobile launch a v1 priority, or wait until web is stable / past N MRR threshold?
+3. Domain for mobile deep links — `m.kling-director.com`? Or use the existing domain with Universal Links?
+4. App name on stores — "Kling Director" or branded distinctly?
+5. Is there a desktop-style admin panel that wouldn't translate well to mobile? (If yes, scope it out and show a "view on desktop" message in the app for those routes.)
 
 ---
 
-## 10. Critical questions to answer for both KLING specs
+## 10. Concrete next steps
 
-To refine both `kling-director-security-audit-spec.md` and this mobile spec, please share:
-
-1. **One-paragraph description of what KLING-Director does** for the agency
-2. **Who uses it** — creators, internal staff, both
-3. **Whether it shares a session with LiveIQ** or has separate auth
-4. **Stripe usage pattern** — Connect for creator payouts, standard Charges for billing, both, or other
-5. **Is it live yet** with real money flowing
-6. **Does it integrate with Kling AI** (the video gen tool) or is "KLING" branding-only
-
-Even short bullet answers will firm up both specs significantly.
-
----
-
-## 11. Concrete next steps
-
-1. Answer §10 — these are the highest-leverage clarifications for both KLING specs.
-2. Phase 0 spike — 3-5 days, focused on Stripe Checkout / Connect WebView compatibility.
-3. Architectural decision on §3 (standalone vs unified app).
+1. Phase 0 spike — 3-5 days, focused on the three critical WebView paths in §7.
+2. Decision after spike — go / fall back to Custom Tabs / pivot to native-only billing screens.
+3. If go: create `kling-mobile` repo (separate from `liveiq-mobile`), scaffold per §4.
 4. Coordinate Phase 0 timing with the LiveIQ mobile spike — same engineer, same week, saves setup time.
+5. Cross-reference the audit spec — items in §8 of this doc go into the audit's Phase 3 checklist before mobile launch.
