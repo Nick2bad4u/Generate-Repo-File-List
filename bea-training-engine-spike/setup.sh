@@ -32,6 +32,16 @@ check_python() {
   log "Python ${version} OK"
 }
 
+check_ffmpeg() {
+  if ! command -v ffmpeg >/dev/null 2>&1 || ! command -v ffprobe >/dev/null 2>&1; then
+    warn "ffmpeg / ffprobe not found — required by video_renderer.py."
+    warn "Install: brew install ffmpeg (macOS) | apt install ffmpeg (Linux)"
+    warn "Continuing setup, but render-video will fail until ffmpeg is installed."
+    return 0
+  fi
+  log "ffmpeg OK ($(ffmpeg -version | head -n 1))"
+}
+
 check_gcloud() {
   if ! command -v gcloud >/dev/null 2>&1; then
     warn "gcloud CLI not found."
@@ -68,6 +78,7 @@ log "Phase 0 spike setup starting in $(pwd)"
 
 check_python
 check_gcloud
+check_ffmpeg
 
 mkdir -p forks inputs outputs
 

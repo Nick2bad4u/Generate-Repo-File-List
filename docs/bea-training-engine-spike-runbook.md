@@ -9,6 +9,8 @@
 > - Requires a NotebookLM Enterprise license on your GCP project
 > - The Enterprise API exposes notebooks + sources + audio overviews; **slide-deck generation is not a documented output** — Claude derives slides from the audio overview transcript + source corpus
 > - Day 1's critical verification is: *can we actually retrieve the audio file and transcript via API?* If not, see §"Day 1 blocker paths" below.
+>
+> **v0.3 update:** Discovered that `training-video-generator` (the BEA fork) is a doc-prep tool for consumer NotebookLM, not a slide-deck-to-MP4 renderer, AND the NotebookLM Enterprise API doesn't expose video overview generation. See `docs/bea-training-engine-tooling-findings.md` for details. Pivoted the spike's video assembly to a DIY pipeline: PIL slide rendering + Kokoro TTS + ffmpeg. The kit's `src/video_renderer.py` now implements this pipeline directly.
 
 ---
 

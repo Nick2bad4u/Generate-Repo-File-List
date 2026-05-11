@@ -13,3 +13,13 @@ requests>=2.32.0
 # For reading source documents in inputs/
 pypdf>=4.2.0
 markdown-it-py>=3.0.0
+
+# Video assembly pipeline (Path A per docs/bea-training-engine-tooling-findings.md)
+# - PIL/Pillow renders slide images
+# - kokoro-onnx is the default local TTS
+# - google-cloud-texttospeech is the optional paid alternative (set TTS_ENGINE=gcloud)
+# - ffmpeg is a system binary, not a pip dep — setup.sh checks for it
+Pillow>=10.3.0
+kokoro-onnx>=0.3.0
+soundfile>=0.12.1
+google-cloud-texttospeech>=2.16.0  ; python_version >= "3.11"
