@@ -139,15 +139,8 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 - Choice: re-upload to YouTube as a new video (new URL, lose stats), OR re-render and update via YouTube's "Replace Video" (limited; preserves URL/stats but Data API may not expose it). YouTube generally doesn't let you replace the video file itself — you'd need to delete + reupload + relink in Toklytics
 - Recommendation: treat re-renders as new modules with versioned IDs (`BEA-TRN-0001-v2`) and let creators see "newer version available"
 
-### 9. Editorial / approval workflow
-**Status:** Not addressed. AI-generated training that auto-publishes is a risk.
-
-**What's needed:**
-- A staging step: generated video → reviewer dashboard → approve → publish
-- Reviewer dashboard (likely a Toklytics admin screen) with: preview player, source citations, AI-generation note, approve / reject / send-back buttons
-- Audit log of who approved what
-
-**Recommendation:** Required for Phase 1 launch even if it's just "Tobi or someone on the team clicks approve in a UI."
+### 9. Editorial / approval workflow — ✅ DESIGNED
+**Status:** Full design in `bea-training-engine-editorial-workflow.md`. Engine-side scaffold (state machine + CLI for review/approve/reject/request-changes/publish-gate) shipped in `bea-training-engine-spike/src/module_status.py` + orchestrator commands. The Toklytics-LiveIQ admin dashboard is the remaining implementation work (estimated 5-7 days for the LiveIQ team).
 
 ### 10. Notifications when new modules drop
 **Status:** Mentioned in the spec architecture but not implemented.
@@ -226,7 +219,7 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 
 1. ~~**One YouTube channel or separate?**~~ **Resolved:** single channel — [@boldevolution](https://youtube.com/@boldevolution), "Bold Evolution Agency". Same channel hosts both public-facing content (if any) and unlisted training. Unlisted videos don't show on the channel page, so there's no UX conflict.
 2. ~~**Unlisted only, or some public training that doubles as marketing?**~~ **Resolved:** unlisted only.
-3. **What's the editorial review bar?** Per-video approval, or per-batch?
+3. ~~**What's the editorial review bar?**~~ **Resolved:** Per-video at launch (Phase 1). Per-batch as a Phase 2 optimization once a prompt-template family has shipped 50+ modules with < 10% rejection rate. Compliance-flagged modules (keyword heuristic + senior editor co-sign) get extra scrutiny. Spike-side scaffold lives in `bea-training-engine-spike/src/module_status.py`; full design in `docs/bea-training-engine-editorial-workflow.md`.
 4. ~~**Languages beyond English in scope for v1?**~~ **Resolved:** Spanish (es-US Latin American Spanish, the largest Spanish-speaking TikTok creator market). Implemented via Cloud Translation API + Cloud TTS Spanish voices. See `bea-training-engine-spike/src/translator.py` + `translate-deck` orchestrator command. Each module renders twice (English + Spanish) and publishes as two separate YouTube videos with appropriate `defaultLanguage`/`defaultAudioLanguage` metadata.
 5. ~~**Is Toklytics-LiveIQ ready to host a Training tab?**~~ **Resolved:** structure already in place. Engine needs to learn its schema.
 6. ~~**Branding — "BEA" or sub-brand?**~~ **Resolved:** full name "Bold Evolution Agency" (not "BEA Academy" or similar). Affects:

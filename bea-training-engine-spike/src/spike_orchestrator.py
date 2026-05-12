@@ -29,6 +29,7 @@ import click
 from dotenv import load_dotenv
 from rich.console import Console
 
+import module_status
 from analytics_collector import AnalyticsCollector
 from captions_generator import generate_srt
 from notebooklm_client import NotebookLMEnterpriseClient
@@ -307,7 +308,159 @@ def generate_captions(deck: Path, timing: Path) -> None:
     console.print(f"[green]Captions written to {out}[/green]")
 
 
+# ----- Editorial workflow -----
+
+
+@cli.command("submit-review")
+@click.option(
+    "--module-id",
+    required=True,
+    help="Module ID, e.g. BEA-TRN-0001",
+)
+@click.option(
+    "--deck",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-deck-spike/deck.json",
+)
+@click.option(
+    "--video",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.mp4",
+)
+@click.option(
+    "--captions",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.srt",
+)
+@click.option("--language", default=None, help="Override; defaults to deck.language.")
+@click.option("--prompt-version", default="slide-outline:v1")
+def submit_review(
+    module_id: str,
+    deck: Path,
+    video: Path,
+    captions: Path | None,
+    language: str | None,
+    prompt_version: str,
+) -> None:
+    """Move a generated module into PENDING_REVIEW state."""
+    deck_data = json.loads(deck.read_text())
+    lang = language or deck_data.get("language") or "en-US"
+
+    record = module_status.submit(
+        module_id=module_id,
+        language=lang,
+        deck=deck_data,
+        artifact_url=str(video),
+        deck_url=str(deck),
+        captions_url=str(captions) if captions and captions.exists() else None,
+        prompt_template_ver=prompt_version,
+    )
+    flag = "[yellow]COMPLIANCE FLAG[/yellow] " if record.compliance_flagged else ""
+    console.print(
+        f"{flag}[green]Submitted {module_id} ({lang}) for review. "
+        f"Status: {record.status}[/green]"
+    )
+
+
+@cli.command("pending")
+def pending() -> None:
+    """List modules awaiting review."""
+    items = module_status.list_pending()
+    if not items:
+        console.print("[green]No modules pending review.[/green]")
+        return
+    for r in items:
+        flag = " [COMPLIANCE]" if r.compliance_flagged else ""
+        console.print(
+            f"  - {r.module_id} ({r.language}){flag} submitted {r.submitted_at}"
+        )
+
+
+@cli.command("approve")
+@click.option("--module-id", required=True)
+@click.option("--language", default="en-US")
+@click.option(
+    "--actor",
+    required=True,
+    help="Reviewer identity, e.g. 'editor:tobi' or 'senior_editor:tobi'.",
+)
+@click.option("--notes", default=None)
+def approve_cmd(module_id: str, language: str, actor: str, notes: str | None) -> None:
+    """Approve a pending module."""
+    record = module_status.approve(module_id, language, actor, notes)
+    console.print(
+        f"[green]Approved {module_id} ({language}) by {actor}. "
+        f"Now ready to publish.[/green]"
+    )
+    if record.compliance_flagged:
+        console.print(
+            "  (compliance-flagged module — senior_editor co-sign recorded)"
+        )
+
+
+@cli.command("reject")
+@click.option("--module-id", required=True)
+@click.option("--language", default="en-US")
+@click.option("--actor", required=True)
+@click.option(
+    "--reason",
+    type=click.Choice(sorted(module_status.REJECT_REASONS)),
+    required=True,
+)
+@click.option("--slide-index", type=int, default=None)
+@click.option("--notes", default=None)
+def reject_cmd(
+    module_id: str,
+    language: str,
+    actor: str,
+    reason: str,
+    slide_index: int | None,
+    notes: str | None,
+) -> None:
+    """Reject a pending module."""
+    module_status.reject(module_id, language, actor, reason, slide_index, notes)
+    console.print(f"[red]Rejected {module_id} ({language}): {reason}[/red]")
+
+
+@cli.command("request-changes")
+@click.option("--module-id", required=True)
+@click.option("--language", default="en-US")
+@click.option("--actor", required=True)
+@click.option(
+    "--reason",
+    type=click.Choice(sorted(module_status.REJECT_REASONS)),
+    required=True,
+)
+@click.option("--slide-index", type=int, default=None)
+@click.option("--notes", default=None)
+def request_changes_cmd(
+    module_id: str,
+    language: str,
+    actor: str,
+    reason: str,
+    slide_index: int | None,
+    notes: str | None,
+) -> None:
+    """Send back to DRAFT with a rejection hint for the next regeneration."""
+    module_status.request_changes(module_id, language, actor, reason, slide_index, notes)
+    console.print(
+        f"[yellow]Sent {module_id} ({language}) back to DRAFT with hint: "
+        f"{reason}[/yellow]"
+    )
+    console.print(
+        "  Re-run derive-deck to regenerate; rejection.json informs the new pass."
+    )
+
+
+# ----- Publish (now gated on APPROVED) -----
+
+
 @cli.command("publish-youtube")
+@click.option(
+    "--module-id",
+    required=True,
+    help="Module ID; publish is gated on APPROVED status.",
+)
 @click.option(
     "--video",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
@@ -315,6 +468,7 @@ def generate_captions(deck: Path, timing: Path) -> None:
 )
 @click.option(
     "--module",
+    "module_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     help="Path to module metadata JSON (title, description, tags, etc).",
 )
@@ -328,39 +482,59 @@ def generate_captions(deck: Path, timing: Path) -> None:
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=lambda: OUTPUT_DIR / "01-video-spike.srt",
 )
+@click.option("--language", default="en-US")
 @click.option(
     "--privacy",
     default=None,
     help="Override privacy. Defaults to YOUTUBE_DEFAULT_PRIVACY (unlisted).",
 )
+@click.option(
+    "--skip-approval-check",
+    is_flag=True,
+    default=False,
+    help="DANGEROUS: bypass the APPROVED gate. Spike-only escape hatch.",
+)
 def publish_youtube(
+    module_id: str,
     video: Path,
-    module: Path | None,
+    module_path: Path | None,
     thumbnail: Path | None,
     captions: Path | None,
+    language: str,
     privacy: str | None,
+    skip_approval_check: bool,
 ) -> None:
-    """Upload to @boldevolution YouTube channel."""
-    console.rule(f"[bold blue]Uploading {video.name} to YouTube")
+    """Upload to @boldevolution YouTube channel. Gated on APPROVED status."""
+    console.rule(f"[bold blue]Publishing {module_id} ({language})")
 
-    if module:
-        module_data = json.loads(module.read_text())
+    if not skip_approval_check:
+        record = module_status.require_approved(module_id, language)
+        console.print(f"[green]Approval check passed: approved by {record.decided_by}[/green]")
+
+    if module_path:
+        module_data = json.loads(module_path.read_text())
     else:
-        # Fall back to deck.json for spike convenience
-        deck_path = OUTPUT_DIR / "01-deck-spike/deck.json"
+        # Fall back to deck.json for convenience
+        deck_path = OUTPUT_DIR / "01-deck-spike" / (
+            "deck.json" if language == "en-US" else f"deck-{language}.json"
+        )
         deck_data = json.loads(deck_path.read_text()) if deck_path.exists() else {}
         module_data = {
-            "title": deck_data.get("topic", "BEA Training Spike"),
-            "description": f"Spike output for topic: {deck_data.get('topic', 'unknown')}.",
+            "title": deck_data.get("topic", f"BEA Training {module_id}"),
+            "description": f"Module {module_id}. Topic: {deck_data.get('topic', 'unknown')}.",
             "topic_tags": ["training", "tiktok-live", "creator-coaching"],
         }
 
-    publisher = YouTubePublisher(privacy_status=privacy or "")
+    publisher = YouTubePublisher(privacy_status=privacy or "", language=language.split("-")[0])
     result = publisher.publish(video, module_data, thumbnail, captions)
     console.print(f"[green]Published: {result['video_url']}[/green]")
-    console.print(json.dumps(result, indent=2))
 
-    _stash(result, "publish-result.json")
+    # Transition state to PUBLISHED
+    if not skip_approval_check:
+        module_status.mark_published(module_id, language, result["video_id"])
+
+    console.print(json.dumps(result, indent=2))
+    _stash(result, f"publish-result-{module_id}-{language}.json")
 
 
 @cli.command("fetch-analytics")
