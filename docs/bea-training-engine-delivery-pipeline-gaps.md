@@ -60,10 +60,14 @@ Sources → NotebookLM → Claude → PIL/TTS/ffmpeg → MP4
 ### 2. Toklytics-LiveIQ video module — ✅ RESOLVED
 **Status:** Already in place. BEA confirmed the Training structure exists in Toklytics-LiveIQ.
 
-**Remaining work** (engine-side, not LiveIQ-side):
-- Get the exact schema the engine should write into (table name, required fields, video reference format — embedded URL vs YouTube ID vs module ID)
-- Confirm how completion events flow (does the iframe already wire YouTube IFrame API events into LiveIQ tracking?)
-- Define the API or DB contract: how does the engine create a new module record after publishing to YouTube?
+**Integration mechanism:** **YouTube playlists** are the handoff. Toklytics-LiveIQ reads the @boldevolution training playlists and presents them in the app. The engine just needs to:
+1. Upload the MP4 to YouTube (unlisted)
+2. Add it to the correct training playlist for that module's language / topic
+3. Toklytics auto-discovers the new video on its next playlist sync
+
+**No DB write, no tRPC, no separate manifest needed.** This is dramatically simpler than the schema-based integration originally assumed.
+
+Implementation: `youtube_publisher.py` accepts a `playlist_id` per call. The orchestrator's `publish-youtube` command resolves it via a fallback chain (CLI flag → module JSON → env var per language). `list-playlists` CLI command helps find the right IDs during setup.
 
 ### 3. Thumbnails wired into the pipeline
 **Status:** Repo exists (`YouTube-Thumbnail`) but not connected.
@@ -98,30 +102,10 @@ Sources → NotebookLM → Claude → PIL/TTS/ffmpeg → MP4
 
 ## Tier 2 — Important, should address in Phase 1
 
-### 6. Video metadata manifest — ✅ LIKELY RESOLVED
-**Status:** Toklytics-LiveIQ already has the Training structure, which presumably implies a module schema. Engine needs to write into that existing schema rather than define its own.
+### 6. Video metadata manifest — ✅ NOT NEEDED
+**Status:** Made obsolete by the playlist-based handoff. All module metadata that Toklytics-LiveIQ needs lives on the YouTube video itself (title, description, tags, category, thumbnail, captions) + the playlist membership tells Toklytics which catalog section to put it in. No separate manifest record required.
 
-**Remaining work:**
-- Document the Toklytics module schema as it exists today (field-by-field)
-- Adapt the engine to produce records that fit — including any fields not in the suggested list below
-- Suggested fields the engine *can* contribute (so LiveIQ doesn't have to ask):
-
-```
-module
-├── id (BEA-TRN-0001, etc.)
-├── title
-├── description
-├── youtube_video_id
-├── duration_seconds
-├── topic_tags (gifting, retention, compliance, etc.)
-├── audience_tier / audience_region
-├── source_version (which BEA-Live-Guide commit produced this)
-├── published_at
-├── ai_generated: bool
-└── prerequisites: [module_id...]
-```
-
-If LiveIQ's existing schema is leaner, the extras live in the engine's own DB and we expose them via a separate manifest endpoint if needed.
+**Engine-internal tracking:** Module status, prompt template version, source commit SHA, cost, and audit log live in the engine's own state file (`outputs/review-state.json` during the spike; a real DB in Phase 1). These are operational metadata Toklytics doesn't need to see.
 
 ### 7. Completion tracking + coaching loop — ⚠️ PARTIALLY RESOLVED
 **Status:** Toklytics-LiveIQ's Training structure presumably already tracks playback. The coaching-loop integration (using watched-module data inside the realtime coach) is the remaining Phase 2 piece.

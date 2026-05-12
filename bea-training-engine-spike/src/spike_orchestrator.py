@@ -55,6 +55,20 @@ def cli() -> None:
 # ----- Day 1 -----
 
 
+@cli.command("list-playlists")
+def list_playlists() -> None:
+    """Print all playlists on @boldevolution — useful for finding playlist IDs."""
+    publisher = YouTubePublisher()
+    playlists = publisher.list_playlists()
+    if not playlists:
+        console.print("[yellow]No playlists found on the channel.[/yellow]")
+        return
+    for p in playlists:
+        console.print(f"  {p['id']}  {p['title']}")
+        if p.get("description"):
+            console.print(f"      {p['description'][:80]}")
+
+
 @cli.command()
 def auth() -> None:
     """Day 1: verify gcloud + NotebookLM Enterprise API + Anthropic key all work."""
@@ -470,7 +484,7 @@ def request_changes_cmd(
     "--module",
     "module_path",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
-    help="Path to module metadata JSON (title, description, tags, etc).",
+    help="Path to module metadata JSON (title, description, tags, playlist_id, etc).",
 )
 @click.option(
     "--thumbnail",
@@ -483,6 +497,12 @@ def request_changes_cmd(
     default=lambda: OUTPUT_DIR / "01-video-spike.srt",
 )
 @click.option("--language", default="en-US")
+@click.option(
+    "--playlist",
+    default=None,
+    help="YouTube playlist ID to add the video to (the Toklytics handoff). "
+    "Falls back to module.playlist_id, then YOUTUBE_PLAYLIST_TRAINING_<LANG>.",
+)
 @click.option(
     "--privacy",
     default=None,
@@ -501,10 +521,11 @@ def publish_youtube(
     thumbnail: Path | None,
     captions: Path | None,
     language: str,
+    playlist: str | None,
     privacy: str | None,
     skip_approval_check: bool,
 ) -> None:
-    """Upload to @boldevolution YouTube channel. Gated on APPROVED status."""
+    """Upload to @boldevolution. Adds to the training playlist (Toklytics handoff)."""
     console.rule(f"[bold blue]Publishing {module_id} ({language})")
 
     if not skip_approval_check:
@@ -525,11 +546,31 @@ def publish_youtube(
             "topic_tags": ["training", "tiktok-live", "creator-coaching"],
         }
 
-    publisher = YouTubePublisher(privacy_status=privacy or "", language=language.split("-")[0])
-    result = publisher.publish(video, module_data, thumbnail, captions)
-    console.print(f"[green]Published: {result['video_url']}[/green]")
+    # Resolve playlist with a fallback chain
+    playlist_id = (
+        playlist
+        or module_data.get("playlist_id")
+        or os.environ.get(f"YOUTUBE_PLAYLIST_TRAINING_{language.upper().replace('-', '_')}")
+    )
 
-    # Transition state to PUBLISHED
+    if not playlist_id:
+        console.print(
+            "[yellow]No playlist ID resolved — the video will be orphaned from "
+            "Toklytics until added to a playlist manually. Use --playlist or set "
+            f"YOUTUBE_PLAYLIST_TRAINING_{language.upper().replace('-', '_')} in .env.[/yellow]"
+        )
+
+    publisher = YouTubePublisher(privacy_status=privacy or "", language=language.split("-")[0])
+    result = publisher.publish(
+        video, module_data, thumbnail, captions, playlist_id=playlist_id
+    )
+    console.print(f"[green]Published: {result['video_url']}[/green]")
+    if result.get("toklytics_handoff"):
+        console.print(
+            f"[green]Added to playlist {result['playlist_id']} "
+            f"(Toklytics will pick it up)[/green]"
+        )
+
     if not skip_approval_check:
         module_status.mark_published(module_id, language, result["video_id"])
 

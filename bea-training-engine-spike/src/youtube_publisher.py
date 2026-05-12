@@ -66,8 +66,15 @@ class YouTubePublisher:
         module: dict[str, Any],
         thumbnail_path: Path | None = None,
         captions_path: Path | None = None,
+        playlist_id: str | None = None,
     ) -> dict[str, Any]:
-        """Upload video + optional thumbnail + optional captions. Returns IDs/URLs."""
+        """Upload video + optional thumbnail + optional captions + optional playlist.
+
+        The playlist is BEA's handoff to Toklytics-LiveIQ: Toklytics presents
+        the training catalog by reading the @boldevolution training playlists.
+        Adding the video to the right playlist is what makes it appear in the
+        creator app — there's no DB write or separate manifest needed.
+        """
         if not video_path.exists():
             raise FileNotFoundError(video_path)
 
@@ -156,7 +163,66 @@ class YouTubePublisher:
             )
             result["caption_id"] = cap_response["id"]
 
+        # ---- 4. Playlist (the Toklytics handoff) ----
+        if playlist_id:
+            playlist_item = (
+                youtube.playlistItems()
+                .insert(
+                    part="snippet",
+                    body={
+                        "snippet": {
+                            "playlistId": playlist_id,
+                            "resourceId": {
+                                "kind": "youtube#video",
+                                "videoId": video_id,
+                            },
+                        }
+                    },
+                )
+                .execute()
+            )
+            result["playlist_id"] = playlist_id
+            result["playlist_item_id"] = playlist_item["id"]
+            result["toklytics_handoff"] = True
+
         return result
+
+    def list_playlists(self) -> list[dict[str, Any]]:
+        """Return playlists owned by the authenticated channel.
+
+        Useful for picking the right playlist ID during setup, or for
+        confirming the configured ID still exists.
+        """
+        youtube = self._client()
+        playlists: list[dict[str, Any]] = []
+        page_token: str | None = None
+        while True:
+            response = (
+                youtube.playlists()
+                .list(part="snippet", mine=True, maxResults=50, pageToken=page_token)
+                .execute()
+            )
+            for item in response.get("items", []):
+                playlists.append(
+                    {
+                        "id": item["id"],
+                        "title": item["snippet"]["title"],
+                        "description": item["snippet"].get("description", ""),
+                    }
+                )
+            page_token = response.get("nextPageToken")
+            if not page_token:
+                break
+        return playlists
+
+    def remove_from_playlist(self, playlist_item_id: str) -> None:
+        """Remove a video from a playlist (used during module deprecation).
+
+        Note: `playlist_item_id` is NOT the video ID — it's the membership
+        record returned by publish(). Save it when publishing so deprecation
+        can find the right row to delete.
+        """
+        self._client().playlistItems().delete(id=playlist_item_id).execute()
 
 
 if __name__ == "__main__":
