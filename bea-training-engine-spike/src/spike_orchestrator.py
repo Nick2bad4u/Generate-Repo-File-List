@@ -34,6 +34,7 @@ from analytics_collector import AnalyticsCollector
 from captions_generator import generate_srt
 from notebooklm_client import NotebookLMEnterpriseClient
 from slide_deriver import ClaudeSlideDeriver
+from thumbnail_generator import PILThumbnailGenerator, TRPCThumbnailGenerator
 from translator import DeckTranslator
 from video_renderer import VideoRenderer
 from youtube_publisher import YouTubePublisher
@@ -490,6 +491,17 @@ def request_changes_cmd(
     "--thumbnail",
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
     default=None,
+    help="Path to an existing thumbnail PNG. If absent, uses --thumbnail-mode.",
+)
+@click.option(
+    "--thumbnail-mode",
+    type=click.Choice(["pil", "trpc-text", "trpc-url", "skip"]),
+    default=None,
+    help="How to generate a thumbnail when --thumbnail isn't provided. "
+    "pil=local PIL render (default). trpc-text=YouTube-Thumbnail service "
+    "text-prompt mode (pre-upload). trpc-url=YouTube-Thumbnail service "
+    "video_url mode (post-upload, analyzes the published video). skip=no "
+    "thumbnail. Falls back to THUMBNAIL_ENGINE env var, then pil.",
 )
 @click.option(
     "--captions",
@@ -519,6 +531,7 @@ def publish_youtube(
     video: Path,
     module_path: Path | None,
     thumbnail: Path | None,
+    thumbnail_mode: str | None,
     captions: Path | None,
     language: str,
     playlist: str | None,
@@ -561,8 +574,44 @@ def publish_youtube(
         )
 
     publisher = YouTubePublisher(privacy_status=privacy or "", language=language.split("-")[0])
+
+    # Resolve thumbnail strategy
+    brand = json.loads(BRAND_THEME.read_text())
+    mode = thumbnail_mode or os.environ.get("THUMBNAIL_ENGINE", "pil")
+    thumbnail_path = thumbnail
+    post_upload_thumbnail_fn = None
+
+    if thumbnail is None and mode != "skip":
+        thumb_out = OUTPUT_DIR / f"thumb-{module_id}-{language}.png"
+        title = module_data.get("title", f"BEA Training {module_id}")
+        subtitle = module_data.get("subtitle") or module_id
+
+        if mode == "pil":
+            console.print(f"[blue]Generating PIL thumbnail → {thumb_out}[/blue]")
+            PILThumbnailGenerator(brand=brand).generate(title, thumb_out, subtitle)
+            thumbnail_path = thumb_out
+        elif mode == "trpc-text":
+            console.print(f"[blue]Calling YouTube-Thumbnail (text mode) → {thumb_out}[/blue]")
+            TRPCThumbnailGenerator().generate(title, thumb_out, subtitle)
+            thumbnail_path = thumb_out
+        elif mode == "trpc-url":
+            # Defer to post-upload — needs the YouTube URL
+            console.print("[blue]Will generate thumbnail post-upload via video URL[/blue]")
+            trpc = TRPCThumbnailGenerator()
+
+            def _post_upload(video_url: str) -> Path:
+                console.print(
+                    f"[blue]Calling YouTube-Thumbnail (video_url mode) for {video_url}[/blue]"
+                )
+                trpc.generate_from_url(video_url, thumb_out)
+                return thumb_out
+
+            post_upload_thumbnail_fn = _post_upload
+
     result = publisher.publish(
-        video, module_data, thumbnail, captions, playlist_id=playlist_id
+        video, module_data, thumbnail_path, captions,
+        playlist_id=playlist_id,
+        post_upload_thumbnail_fn=post_upload_thumbnail_fn,
     )
     console.print(f"[green]Published: {result['video_url']}[/green]")
     if result.get("toklytics_handoff"):

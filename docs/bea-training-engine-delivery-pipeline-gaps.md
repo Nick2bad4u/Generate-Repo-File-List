@@ -69,14 +69,19 @@ Sources → NotebookLM → Claude → PIL/TTS/ffmpeg → MP4
 
 Implementation: `youtube_publisher.py` accepts a `playlist_id` per call. The orchestrator's `publish-youtube` command resolves it via a fallback chain (CLI flag → module JSON → env var per language). `list-playlists` CLI command helps find the right IDs during setup.
 
-### 3. Thumbnails wired into the pipeline
-**Status:** Repo exists (`YouTube-Thumbnail`) but not connected.
+### 3. Thumbnails wired into the pipeline — ✅ RESOLVED
+**Status:** `src/thumbnail_generator.py` ships three backends, selectable via `--thumbnail-mode` or the `THUMBNAIL_ENGINE` env var:
 
-**What's needed:**
-- Inspect the existing repo's API/CLI
-- Call it from the orchestrator after the MP4 is rendered, passing: title text, BEA brand colors, optional creator name or topic
-- Output: PNG matching YouTube's required dimensions (1280×720, < 2MB, JPG/PNG/GIF/BMP)
-- Auto-attach during YouTube upload
+| Mode | When it runs | Backend | Pros | Cons |
+|---|---|---|---|---|
+| `pil` (default) | Pre-upload | Local PIL render | No external service. Deterministic. Brand-consistent across modules. | Plain visual style; no AI imagery. |
+| `trpc-text` | Pre-upload | YouTube-Thumbnail service (text_prompt mode) | AI-generated. | Tool can't see the video content yet. Requires service reachable. |
+| `trpc-url` | **Post-upload** | YouTube-Thumbnail service (video_url mode) | Tool downloads + analyzes the published video. Highest quality. | Requires video to be on YouTube first; one extra round-trip. |
+| `skip` | — | — | YouTube auto-frame. | No control over the visual. |
+
+Pattern B (post-upload `trpc-url`) needed publisher support for a callback — `youtube_publisher.publish()` now accepts `post_upload_thumbnail_fn(video_url) -> Path` and applies the result via `thumbnails.set()` after the video lands.
+
+**Remaining work:** the tRPC wire shape (procedure name + body envelope + response field) is stubbed based on tRPC v11 conventions. Confirm and adjust after inspecting `apps/api/src/trpc/routers/*.ts` in the `YouTube-Thumbnail` repo.
 
 ### 4. Captions / subtitles
 **Status:** Not in spec. Creator network is global; UK / US / CA at minimum; many non-native English speakers.

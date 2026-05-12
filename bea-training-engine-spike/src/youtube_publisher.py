@@ -67,8 +67,17 @@ class YouTubePublisher:
         thumbnail_path: Path | None = None,
         captions_path: Path | None = None,
         playlist_id: str | None = None,
+        post_upload_thumbnail_fn=None,
     ) -> dict[str, Any]:
         """Upload video + optional thumbnail + optional captions + optional playlist.
+
+        Two thumbnail patterns:
+        - `thumbnail_path` (pre-upload): static file applied during this call.
+          Use this for PIL-rendered or pre-generated thumbnails.
+        - `post_upload_thumbnail_fn` (post-upload): callable taking the
+          uploaded video's YouTube URL, returning a Path to the generated
+          thumbnail PNG. Used by the YouTube-Thumbnail tool's video_url mode,
+          which needs the video on YouTube before it can analyze content.
 
         The playlist is BEA's handoff to Toklytics-LiveIQ: Toklytics presents
         the training catalog by reading the @boldevolution training playlists.
@@ -133,13 +142,26 @@ class YouTubePublisher:
             "privacy_status": self.privacy_status,
         }
 
-        # ---- 2. Thumbnail ----
+        # ---- 2. Thumbnail (pre-upload, static file) ----
         if thumbnail_path and thumbnail_path.exists():
             youtube.thumbnails().set(
                 videoId=video_id,
                 media_body=MediaFileUpload(str(thumbnail_path)),
             ).execute()
             result["thumbnail_set"] = True
+        elif post_upload_thumbnail_fn is not None:
+            # ---- 2b. Thumbnail (post-upload, from video URL) ----
+            # Let the callback generate a thumbnail using the live YouTube URL.
+            # This is the path for YouTube-Thumbnail's video_url mode where
+            # the tool downloads + analyzes the video before generating.
+            generated_path = post_upload_thumbnail_fn(result["video_url"])
+            if generated_path and Path(generated_path).exists():
+                youtube.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(str(generated_path)),
+                ).execute()
+                result["thumbnail_set"] = True
+                result["thumbnail_source"] = "post_upload_callback"
 
         # ---- 3. Captions ----
         if captions_path and captions_path.exists():
