@@ -53,7 +53,7 @@ Where to invest first when raising the floor:
 
 | # | Dimension | Effort | Quality lift | Cost |
 |---|---|---|---|---|
-| 1 | **Voice** (Kokoro → ElevenLabs voice clone) | 1 day | Massive — biggest perceived-quality lever | $0.30/video |
+| 1 | **Voice** (Kokoro → Google Cloud TTS Studio voices) | 1 day | Massive — biggest perceived-quality lever | ~$0.02/video |
 | 2 | **Hook + structure** (prompt tuning for first-5-seconds rule) | 2 days | Large — affects retention curve directly | $0 |
 | 3 | **Visual production system** (Remotion or similar templated renderer) | 3-4 wks | Large — moves output from "slideshow" to "video" | $0 (open source) |
 | 4 | **B-roll / stock footage** (Pexels/Storyblocks API) | 1-2 wks | Medium-large — enables demonstrations | $0-1/video |
@@ -86,15 +86,21 @@ This phase's job was to de-risk the integration. It is explicitly NOT producing 
 
 **Goal:** raise voice quality to "not distracting".
 **Specific work:**
-- Swap Kokoro for ElevenLabs (or commit to a different premium voice provider)
-- Voice-clone a consistent BEA brand voice OR pick a flagship voice and stick with it across all modules
-- Tune narration prompt for natural conversational tone, not slide-readout cadence
+- Switch `TTS_ENGINE` from `kokoro` to `gcloud` in `.env` — Google Cloud TTS Studio voices are already wired in. **No new vendor needed.** BEA is already on GCP via NotebookLM Enterprise, so same auth + billing.
+- Lock a flagship voice per language and stick with it across all modules so it becomes "the BEA voice" by repetition:
+    - English: `en-US-Studio-Q` (male, conversational) or `en-US-Studio-O` (female, natural) — pick one and own it
+    - Spanish: `es-US-Studio-B`
+- Tune narration prompt for natural conversational cadence (not slide-readout style)
 
 **Gate:** play a generated video for a creator-volunteer (someone in the BEA network, not the team). They cannot tell within 30 seconds that the voice is AI-generated, OR they can tell and don't care because the content is engaging.
 
-**Why this phase before the bigger Phase 1:** voice is the single biggest perceived-quality lever and it's a one-day swap. Hitting Phase 0.5's gate validates that the *content* generation is good enough that voice was the bottleneck. If creators reject even with a good voice, the problem is content / structure / pacing — and that's a different fix than visual production.
+**Why this phase before the bigger Phase 1:** voice is the single biggest perceived-quality lever and it's a configuration change + a 1-day prompt tuning pass. Hitting Phase 0.5's gate validates that the *content* generation is good enough that voice was the bottleneck. If creators reject even with a good voice, the problem is content / structure / pacing — and that's a different fix than visual production.
 
-**Status:** not started.
+**Cost impact:** ~$0.02 per 90-second video at Studio voice rates (versus ~$0 for Kokoro). Negligible at any reasonable volume.
+
+**Status:** not started. Trivially small unblock — flip the env var, validate.
+
+**ElevenLabs note:** explicitly NOT recommended. The only thing it offers over Google Cloud Studio voices is *voice cloning* (e.g., cloning a BEA team member's voice as the brand voice). For now, picking a consistent Studio voice and using it across all modules accomplishes the same brand-recognition goal without adding a vendor or cost. Revisit cloning only if creator-volunteer testing comes back with "voice quality is fine but feels generic" feedback — that's a Phase 1 follow-on, not a launch dependency.
 
 ---
 
@@ -212,10 +218,10 @@ Until those six conditions are met, the project is in flight. Phase 0's plain ou
 
 ## Open strategic choices to make soon
 
-1. **Voice provider:** ElevenLabs (premium AI), real human voiceover (Fiverr Pro / hired VO), or a hybrid (real VO for flagship, ElevenLabs for standard)?
-2. **Visual framework:** Remotion (React, TypeScript), Manim (Python, math-focused), After Effects automation (Adobe), or a SaaS like Pictory?
-3. **Stock footage budget:** Pexels free, Storyblocks ~$30/mo, or Artgrid ~$300/yr per seat?
-4. **Brand voice consistency:** clone a real BEA team member's voice, or pick a pro voice and own it as the BEA voice?
-5. **Flagship cadence:** how many Premium-tier modules per quarter? Drives the human-producer budget.
+1. ~~**Voice provider:** ElevenLabs vs real human VO vs hybrid~~ **Resolved:** Google Cloud TTS Studio voices (already in stack via GCP). Real human VO reserved for Premium-tier (Phase 3) flagship modules.
+2. **Visual framework:** Remotion (React/TS — fits the Vercel + Next.js stack BEA already runs), Manim (Python, math-focused), or a SaaS like Pictory? Recommendation: Remotion, because it aligns with the existing Vercel deployment story and produces real broadcast-quality video without per-render fees.
+3. **Stock footage budget:** Pexels free (likely enough for most modules), Storyblocks ~$30/mo (better catalog), or Artgrid ~$300/yr per seat (premium)?
+4. ~~**Brand voice consistency:** clone or pro voice?~~ **Resolved:** lock a consistent Google Cloud Studio voice per language (`en-US-Studio-Q` or `en-US-Studio-O` for English, `es-US-Studio-B` for Spanish). Revisit cloning only if creator-volunteer testing demands a more memorable voice.
+5. **Flagship cadence:** how many Premium-tier modules per quarter? Drives the human-producer budget for Phase 3.
 
 These don't need answers today but should be answered before Phase 0.5 starts.
