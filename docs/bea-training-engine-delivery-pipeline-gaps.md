@@ -1,6 +1,8 @@
 # BEA Training Engine — Delivery Pipeline Gaps
 
-> Context update: BEA training videos will be **hosted on YouTube** and **played inside the Toklytics-LiveIQ app**. The current spec/kit produces an MP4 and stops there. This doc inventories what's missing on the back half of the pipeline.
+> Context update: BEA training videos will be **hosted on YouTube** and **played inside the Toklytics-LiveIQ app**. This doc inventories logistics gaps on the back half of the pipeline.
+>
+> **Important framing:** this is a *logistics* gap inventory. Production quality of the videos themselves is tracked separately in `bea-training-engine-quality-strategy.md`. Closing every gap in this doc does NOT mean videos are ready for creators — it means the plumbing works. The quality strategy is the north star; this doc is the substrate that has to function for the strategy to be deliverable.
 
 ---
 

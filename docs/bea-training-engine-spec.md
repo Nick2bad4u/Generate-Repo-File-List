@@ -1,8 +1,9 @@
 # BEA Training Engine — Design Spec
 
 > Working name: **bea-training-engine**
-> Status: Draft v0.1
+> Status: Draft v0.2
 > Owner: Bold Evolution Agency
+> **Quality bar:** see `bea-training-engine-quality-strategy.md` — that doc is the north star this spec serves. Phase 0's plain output is step 1 of the ladder, not the destination.
 
 ---
 
@@ -18,13 +19,18 @@ The engine leverages the NotebookLM ecosystem forks already in the BEA-BOLD-EVOL
 
 ## 2. Success criteria
 
-| Metric | Target |
-|---|---|
-| Time from topic → published video | < 15 min unattended |
-| Cost per finished video | < $5 in API/compute |
-| Per-creator personalization | At least 3 data points from creator's last 30 days injected into script |
-| Reuse rate | One source module produces ≥ 5 variants (regional, level, language) |
-| Quality bar | A creator can't tell it from a hand-authored video on first watch |
+Hard quality gates (see `bea-training-engine-quality-strategy.md` for the full ladder):
+
+| Metric | Floor (must clear) | Aspiration |
+|---|---|---|
+| Time from topic → published | < 1 day | < 1 hour |
+| Cost per finished video | ≤ $5 in API/compute | ≤ $3 |
+| Audience watch ratio at end | ≥ 50% | ≥ 75% |
+| Creator-volunteer blind test | Can't distinguish AI-generated from team-produced on production quality | "Would screenshot/share unprompted" |
+| Per-creator personalization (V2) | ≥ 3 data points from creator's last 30 days | Behavior change measurable in Toklytics for ≥ 30% of completions |
+| Reuse rate | ≥ 5 variants per source module (regional, level, language) | n/a |
+
+If a phase ships without clearing the floor row, that's a regression — do not promote to creators.
 
 ---
 
