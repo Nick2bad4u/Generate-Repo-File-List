@@ -22,4 +22,9 @@ markdown-it-py>=3.0.0
 Pillow>=10.3.0
 kokoro-onnx>=0.3.0
 soundfile>=0.12.1
+# Google APIs: YouTube Data, YouTube Analytics, Cloud TTS, Cloud Translation
+google-api-python-client>=2.130.0
+google-auth>=2.30.0
+google-auth-oauthlib>=1.2.0
+google-auth-httplib2>=0.2.0
 google-cloud-texttospeech>=2.16.0  ; python_version >= "3.11"

@@ -90,6 +90,25 @@ python src/spike_orchestrator.py render-video \
 
 End-of-day deliverable: `outputs/01-video-spike.mp4`.
 
+### Day 2.5 — Captions + YouTube publish (Phase 1 preview)
+
+The spike includes working modules for the back half of the pipeline:
+
+```bash
+# One-time per machine: OAuth consent for the @boldevolution channel
+# (download client secret JSON to secrets/youtube-client-secret.json first)
+python src/youtube_auth.py
+
+# Generate SRT captions from the deck + render timings
+python src/spike_orchestrator.py generate-captions
+
+# Upload MP4 + captions + (optional) thumbnail to YouTube as unlisted
+python src/spike_orchestrator.py publish-youtube
+
+# Once views accumulate, pull analytics + per-slide drop-off insights
+python src/spike_orchestrator.py fetch-analytics --video-id <YouTube ID>
+```
+
 ### Day 3 — Evaluate + decide
 
 ```bash
@@ -110,20 +129,25 @@ bea-training-engine-spike/
 ├── .env.example                      # env vars to set
 ├── requirements.txt                  # Python deps
 ├── src/
-│   ├── spike_orchestrator.py         # CLI with day-1 / day-2 commands
-│   ├── notebooklm_client.py          # thin wrapper, TODOs to fill in
-│   └── video_renderer.py             # thin wrapper, TODOs to fill in
+│   ├── spike_orchestrator.py         # CLI; all step commands
+│   ├── notebooklm_client.py          # NotebookLM Enterprise REST client
+│   ├── slide_deriver.py              # Claude → deck.json
+│   ├── tts_client.py                 # Kokoro (default) / Google Cloud TTS
+│   ├── video_renderer.py             # PIL slides + ffmpeg → MP4 + timing.json
+│   ├── captions_generator.py         # deck + timing → SRT
+│   ├── youtube_auth.py               # OAuth setup + credentials loader
+│   ├── youtube_publisher.py          # videos.insert + thumbnails.set + captions.insert
+│   └── analytics_collector.py        # YouTube Analytics + drop-off slide detection
 ├── prompts/
 │   ├── slide-outline.md              # template for slide deck generation
 │   ├── narration.md                  # template for narration script
 │   └── README.md                     # how to iterate on prompts
 ├── brand/
-│   ├── theme.json                    # BEA brand config (PLACEHOLDER — fill in)
+│   ├── theme.json                    # brand config (brand_name + youtube_channel locked)
 │   └── README.md                     # what to populate
+├── secrets/                          # gitignored — OAuth artifacts live here
 ├── inputs/                           # gitignored — place source docs here
-│   └── .gitkeep
 ├── outputs/                          # gitignored — spike artifacts land here
-│   └── .gitkeep
 └── evaluation/
     ├── decision-memo-template.md     # fillable form for Day 3
     └── rubric.md                     # the scoring rubric from the runbook

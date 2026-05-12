@@ -29,9 +29,12 @@ import click
 from dotenv import load_dotenv
 from rich.console import Console
 
+from analytics_collector import AnalyticsCollector
+from captions_generator import generate_srt
 from notebooklm_client import NotebookLMEnterpriseClient
 from slide_deriver import ClaudeSlideDeriver
 from video_renderer import VideoRenderer
+from youtube_publisher import YouTubePublisher
 
 load_dotenv()
 console = Console()
@@ -248,6 +251,107 @@ def render_video(deck: Path) -> None:
     output_path.parent.mkdir(parents=True, exist_ok=True)
     renderer.render(deck_data, output_path)
     console.print(f"[green]Video rendered to {output_path}[/green]")
+    console.print(f"[green]Timing sidecar: {output_path.with_suffix('.timing.json')}[/green]")
+
+
+# ----- Day 2.5 / Phase 1 — captions + publish -----
+
+
+@cli.command("generate-captions")
+@click.option(
+    "--deck",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-deck-spike/deck.json",
+)
+@click.option(
+    "--timing",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.timing.json",
+)
+def generate_captions(deck: Path, timing: Path) -> None:
+    """Day 2.5: build SRT captions from the deck + render timings."""
+    console.rule("[bold blue]Generating SRT captions")
+    out = OUTPUT_DIR / "01-video-spike.srt"
+    generate_srt(deck, timing, out)
+    console.print(f"[green]Captions written to {out}[/green]")
+
+
+@cli.command("publish-youtube")
+@click.option(
+    "--video",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.mp4",
+)
+@click.option(
+    "--module",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    help="Path to module metadata JSON (title, description, tags, etc).",
+)
+@click.option(
+    "--thumbnail",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=None,
+)
+@click.option(
+    "--captions",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.srt",
+)
+@click.option(
+    "--privacy",
+    default=None,
+    help="Override privacy. Defaults to YOUTUBE_DEFAULT_PRIVACY (unlisted).",
+)
+def publish_youtube(
+    video: Path,
+    module: Path | None,
+    thumbnail: Path | None,
+    captions: Path | None,
+    privacy: str | None,
+) -> None:
+    """Upload to @boldevolution YouTube channel."""
+    console.rule(f"[bold blue]Uploading {video.name} to YouTube")
+
+    if module:
+        module_data = json.loads(module.read_text())
+    else:
+        # Fall back to deck.json for spike convenience
+        deck_path = OUTPUT_DIR / "01-deck-spike/deck.json"
+        deck_data = json.loads(deck_path.read_text()) if deck_path.exists() else {}
+        module_data = {
+            "title": deck_data.get("topic", "BEA Training Spike"),
+            "description": f"Spike output for topic: {deck_data.get('topic', 'unknown')}.",
+            "topic_tags": ["training", "tiktok-live", "creator-coaching"],
+        }
+
+    publisher = YouTubePublisher(privacy_status=privacy or "")
+    result = publisher.publish(video, module_data, thumbnail, captions)
+    console.print(f"[green]Published: {result['video_url']}[/green]")
+    console.print(json.dumps(result, indent=2))
+
+    _stash(result, "publish-result.json")
+
+
+@cli.command("fetch-analytics")
+@click.option("--video-id", required=True, help="YouTube video ID")
+@click.option(
+    "--timing",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-video-spike.timing.json",
+)
+def fetch_analytics(video_id: str, timing: Path) -> None:
+    """Pull YouTube Analytics summary + drop-off slides for a published video."""
+    console.rule(f"[bold blue]Fetching analytics for {video_id}")
+    collector = AnalyticsCollector()
+
+    summary = collector.video_summary(video_id)
+    console.print("Summary:")
+    console.print(json.dumps(summary, indent=2))
+
+    if timing.exists():
+        drops = collector.find_drop_off_slides(video_id, timing)
+        console.print("\nDrop-off slides:")
+        console.print(json.dumps(drops, indent=2))
 
 
 # ----- helpers -----

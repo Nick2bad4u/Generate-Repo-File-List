@@ -47,12 +47,16 @@ class VideoRenderer:
         if not slides:
             raise ValueError("deck.json has no slides")
 
+        # timing.json sidecar — captions_generator.py reads this for accurate SRT.
+        timing: list[dict[str, float]] = []
+
         with tempfile.TemporaryDirectory() as tmp:
             tmp_dir = Path(tmp)
             slide_paths: list[Path] = []
             audio_paths: list[Path] = []
             durations: list[float] = []
 
+            cursor = 0.0
             for i, slide in enumerate(slides, start=1):
                 # 1. Render slide image
                 img_path = tmp_dir / f"slide_{i:02d}.png"
@@ -70,7 +74,17 @@ class VideoRenderer:
                 audio_paths.append(audio_path)
 
                 # 3. Measure audio duration so the slide displays for that long
-                durations.append(_audio_duration(audio_path))
+                dur = _audio_duration(audio_path)
+                durations.append(dur)
+                timing.append(
+                    {
+                        "index": i,
+                        "start_seconds": round(cursor, 3),
+                        "end_seconds": round(cursor + dur, 3),
+                        "duration_seconds": round(dur, 3),
+                    }
+                )
+                cursor += dur
 
             # 4. Build a concat list for ffmpeg's image2 demuxer
             slides_concat = tmp_dir / "slides.txt"
@@ -103,6 +117,10 @@ class VideoRenderer:
                 ],
                 check=True, capture_output=True,
             )
+
+            # 7. Sidecar timing.json next to the MP4 for captions_generator
+            timing_path = output_path.with_suffix(".timing.json")
+            timing_path.write_text(json.dumps({"slides": timing}, indent=2))
 
     # ---- slide rendering ----
 
