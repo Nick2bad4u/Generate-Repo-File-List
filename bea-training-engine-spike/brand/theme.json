@@ -1,5 +1,7 @@
 {
-  "_comment": "PLACEHOLDER — fill these with real BEA brand values before Day 2 video render. See brand/README.md.",
+  "_comment": "PLACEHOLDER — fill colors/fonts/voice with real brand values. See brand/README.md. The brand_name + youtube_channel are set for Bold Evolution Agency per the @boldevolution channel.",
+  "brand_name": "Bold Evolution Agency",
+  "youtube_channel": "@boldevolution",
   "logo_path": "./brand/logo.png",
   "primary_color": "#000000",
   "secondary_color": "#FFFFFF",

@@ -222,12 +222,15 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 
 ## Open questions for BEA
 
-1. **One YouTube channel for everything, or separate channels?** (e.g., agency-public vs training-only)
+1. ~~**One YouTube channel or separate?**~~ **Resolved:** single channel — [@boldevolution](https://youtube.com/@boldevolution), "Bold Evolution Agency". Same channel hosts both public-facing content (if any) and unlisted training. Unlisted videos don't show on the channel page, so there's no UX conflict.
 2. ~~**Unlisted only, or some public training that doubles as marketing?**~~ **Resolved:** unlisted only.
 3. **What's the editorial review bar?** Per-video approval, or per-batch?
 4. **Languages beyond English in scope for v1?**
 5. ~~**Is Toklytics-LiveIQ ready to host a Training tab?**~~ **Resolved:** structure already in place. Engine needs to learn its schema.
-6. **Branding — is this content from "BEA" the agency, or a sub-brand like "BEA Academy" / "Creator U"?** (Affects channel name, video branding, AI-disclosure wording)
+6. ~~**Branding — "BEA" or sub-brand?**~~ **Resolved:** full name "Bold Evolution Agency" (not "BEA Academy" or similar). Affects:
+    - Video upload metadata: description prefix references "Bold Evolution Agency creator training"
+    - Video lower-thirds / outro slide say "Bold Evolution Agency"
+    - AI-content disclosure wording: "Narration AI-generated. Content sourced from Bold Evolution Agency creator coaching materials."
 7. **Do creators expect access to past training in perpetuity, or does retention follow Toklytics-LiveIQ's tier-based retention (14/30/90 days from KLING-Director's pricing)?**
 
 ### Implications of unlisted-only
