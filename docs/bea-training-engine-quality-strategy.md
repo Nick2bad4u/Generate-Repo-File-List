@@ -1,6 +1,8 @@
 # BEA Training Engine — Quality Strategy
 
-> The north-star quality vision and the ladder that every spike, sprint, and decision must climb. Anchor doc — if a piece of work isn't moving us toward the end state defined here, it's the wrong work.
+> The north-star **production quality** vision and the ladder that every spike, sprint, and decision must climb. Anchor doc — if a piece of work isn't moving us toward the end state defined here, it's the wrong work.
+>
+> **Companion doc:** `bea-training-engine-pedagogy.md` defines **content quality** (the teaching philosophy). Both must be satisfied for a module to ship. Production quality without pedagogy = a beautiful video that doesn't change behavior. Pedagogy without production quality = great training that creators won't watch. Both, or nothing.
 
 ---
 
@@ -106,14 +108,13 @@ This phase's job was to de-risk the integration. It is explicitly NOT producing 
 
 ### Phase 1 — Visual production floor
 
-**Goal:** move from slideshow to actual video.
+**Goal:** move from slideshow to actual video. **Architecture:** see `bea-training-engine-remotion-architecture.md` for the full spec.
 **Specific work:**
-- Replace PIL slide renderer with Remotion (or equivalent programmatic video framework)
-- Build 3-5 reusable templates (intro, teaching slide, demonstration frame, callout, outro)
-- Wire stock b-roll API (Pexels or Storyblocks) — Claude derives search queries per slide
-- Add music bed (Epidemic Sound) with auto-ducking under narration
-- Add stylized caption / lower-third overlay
-- Implement first-5-seconds hook structure in the prompt
+- Replace PIL slide renderer with **Remotion** (React/TS, fits the Vercel + Next stack already in BEA's footprint)
+- Build one React component per pedagogy slide kind (`<Hook />`, `<What />`, `<Why />`, `<How />`, `<Script />`, `<Mistake />`, `<Success />`, `<Recap />`, `<Identity />`, `<Action />`, `<Reflection />`, `<Checkpoint />`) — this is how the pedagogy is enforced in the type system
+- Wire stock b-roll API (Pexels free for Sprint 3; revisit Storyblocks later) — Claude includes search queries per scene
+- Add music bed with auto-ducking under narration
+- Brand token system in `theme/tokens.ts` so updating colors / fonts updates every video
 
 **Gate:** show a generated video to a creator-volunteer alongside a real BEA-team-produced video. They cannot pick out the AI-generated one based on production quality. (Content tone may differ; production quality should not.)
 
@@ -219,7 +220,7 @@ Until those six conditions are met, the project is in flight. Phase 0's plain ou
 ## Open strategic choices to make soon
 
 1. ~~**Voice provider:** ElevenLabs vs real human VO vs hybrid~~ **Resolved:** Google Cloud TTS Studio voices (already in stack via GCP). Real human VO reserved for Premium-tier (Phase 3) flagship modules.
-2. **Visual framework:** Remotion (React/TS — fits the Vercel + Next.js stack BEA already runs), Manim (Python, math-focused), or a SaaS like Pictory? Recommendation: Remotion, because it aligns with the existing Vercel deployment story and produces real broadcast-quality video without per-render fees.
+2. ~~**Visual framework:** Remotion vs Manim vs SaaS?~~ **Resolved:** Remotion. Architecture in `bea-training-engine-remotion-architecture.md`.
 3. **Stock footage budget:** Pexels free (likely enough for most modules), Storyblocks ~$30/mo (better catalog), or Artgrid ~$300/yr per seat (premium)?
 4. ~~**Brand voice consistency:** clone or pro voice?~~ **Resolved:** lock a consistent Google Cloud Studio voice per language (`en-US-Studio-Q` or `en-US-Studio-O` for English, `es-US-Studio-B` for Spanish). Revisit cloning only if creator-volunteer testing demands a more memorable voice.
 5. **Flagship cadence:** how many Premium-tier modules per quarter? Drives the human-producer budget for Phase 3.

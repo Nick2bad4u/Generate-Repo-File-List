@@ -101,9 +101,21 @@ Lives in Toklytics-LiveIQ admin as a "Training Review" tab. The engine doesn't s
 - Three buttons: **Approve**, **Reject with reason**, **Request changes**
 
 **Reject form fields:**
-- Reason (dropdown): factual / mispronunciation / off-brand / off-topic / compliance / cost / other
+- Reason (dropdown): factual / mispronunciation / off-brand / off-topic / compliance / cost / **pedagogy** / other
 - Slide index (optional): which slide is the problem
 - Free-text notes
+
+**Pedagogy compliance checklist** (see `bea-training-engine-pedagogy.md`) — every approved module must satisfy:
+- [ ] Slide 1 is a `hook` — recognizable scene, no "welcome"
+- [ ] Module answers all 5 questions: What / Why / How / Success / Mistakes
+- [ ] Closing trio present in order: `action` → `reflection` → `checkpoint`
+- [ ] Every `why` slide ties to money / growth / visibility / loyalty / confidence / consistency
+- [ ] Every `checkpoint` includes a quantified metric + duration
+- [ ] No corporate filler ("in this video", "it's important to note", "studies have shown")
+- [ ] Pattern variety — no 3+ same `kind` slides in a row
+- [ ] Length matches target ±10%
+
+Modules failing any of the above are rejected with reason `pedagogy` (not `factual` or `off-topic`). The rejection feedback loop in `slide_deriver.py` reads the specific pedagogy failure and adjusts the next generation pass.
 
 **Request changes:**
 - Same fields as reject, but module goes back to DRAFT instead of REJECTED, with the rejection hint attached for the next generation pass.

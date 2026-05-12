@@ -60,6 +60,7 @@ REJECT_REASONS = {
     "off-topic",
     "compliance",
     "cost",
+    "pedagogy",   # violates bea-training-engine-pedagogy.md rules
     "other",
 }
 
