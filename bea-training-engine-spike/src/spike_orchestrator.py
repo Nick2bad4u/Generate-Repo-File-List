@@ -33,6 +33,7 @@ from analytics_collector import AnalyticsCollector
 from captions_generator import generate_srt
 from notebooklm_client import NotebookLMEnterpriseClient
 from slide_deriver import ClaudeSlideDeriver
+from translator import DeckTranslator
 from video_renderer import VideoRenderer
 from youtube_publisher import YouTubePublisher
 
@@ -233,25 +234,55 @@ def derive_deck(topic: str, slides: int, seconds: int, inputs: Path) -> None:
     console.print("Read the script aloud before continuing — sanity check.")
 
 
+@cli.command("translate-deck")
+@click.option(
+    "--deck",
+    type=click.Path(exists=True, dir_okay=False, path_type=Path),
+    default=lambda: OUTPUT_DIR / "01-deck-spike/deck.json",
+)
+@click.option("--target", default="es-US", help="Target language (e.g. es-US, pt-BR).")
+def translate_deck(deck: Path, target: str) -> None:
+    """Translate deck.json into another language. Default target: es-US (Spanish)."""
+    console.rule(f"[bold blue]Translating deck to {target}")
+    src = json.loads(deck.read_text())
+    translator = DeckTranslator()
+    translated = translator.translate_deck(src, target_language=target)
+
+    out_path = deck.with_name(f"{deck.stem}-{target}{deck.suffix}")
+    out_path.write_text(json.dumps(translated, indent=2, ensure_ascii=False))
+    console.print(f"[green]Translated deck saved to {out_path}[/green]")
+    console.print("[yellow]Spot-check the translation before rendering.[/yellow]")
+
+
 @cli.command("render-video")
 @click.option(
     "--deck",
     required=True,
     type=click.Path(exists=True, dir_okay=False, path_type=Path),
 )
-def render_video(deck: Path) -> None:
-    """Day 2 afternoon: render the deck to MP4."""
-    console.rule(f"[bold blue]Day 2 — rendering video from {deck}")
+@click.option(
+    "--out",
+    type=click.Path(dir_okay=False, path_type=Path),
+    default=None,
+    help="Output MP4 path. Defaults to outputs/01-video-spike{-LANG}.mp4 based on deck language.",
+)
+def render_video(deck: Path, out: Path | None) -> None:
+    """Render a deck (English or translated) to MP4 + timing sidecar."""
+    console.rule(f"[bold blue]Rendering video from {deck.name}")
 
     deck_data = json.loads(deck.read_text())
     brand = json.loads(BRAND_THEME.read_text())
+    lang = deck_data.get("language") or brand.get("default_language", "en-US")
+
+    if out is None:
+        suffix = "" if lang == brand.get("default_language", "en-US") else f"-{lang}"
+        out = OUTPUT_DIR / f"01-video-spike{suffix}.mp4"
 
     renderer = VideoRenderer(brand=brand)
-    output_path = OUTPUT_DIR / "01-video-spike.mp4"
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    renderer.render(deck_data, output_path)
-    console.print(f"[green]Video rendered to {output_path}[/green]")
-    console.print(f"[green]Timing sidecar: {output_path.with_suffix('.timing.json')}[/green]")
+    out.parent.mkdir(parents=True, exist_ok=True)
+    renderer.render(deck_data, out)
+    console.print(f"[green]Video rendered to {out}[/green]")
+    console.print(f"[green]Timing sidecar: {out.with_suffix('.timing.json')}[/green]")
 
 
 # ----- Day 2.5 / Phase 1 — captions + publish -----

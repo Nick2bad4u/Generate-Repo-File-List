@@ -47,6 +47,9 @@ class VideoRenderer:
         if not slides:
             raise ValueError("deck.json has no slides")
 
+        deck_language = deck.get("language") or self.brand.get("default_language", "en-US")
+        voice = self.tts.resolve_voice(self.brand, deck_language)
+
         # timing.json sidecar — captions_generator.py reads this for accurate SRT.
         timing: list[dict[str, float]] = []
 
@@ -70,7 +73,7 @@ class VideoRenderer:
                     or slide.get("speaker_intent")
                     or slide.get("title", "")
                 )
-                self.tts.synthesize(narration, audio_path, voice=self.brand.get("voice"))
+                self.tts.synthesize(narration, audio_path, voice=voice)
                 audio_paths.append(audio_path)
 
                 # 3. Measure audio duration so the slide displays for that long

@@ -30,6 +30,19 @@ class TTSClient:
             return self._kokoro(text, output_path, voice)
         return self._gcloud(text, output_path, voice)
 
+    def resolve_voice(self, brand: dict, language: str) -> str | None:
+        """Look up the brand voice for (language, current engine).
+
+        Falls back to brand['default_language'] then to None (engine default).
+        """
+        voices = brand.get("voices") or {}
+        if language in voices and self.engine in voices[language]:
+            return voices[language][self.engine]
+        default_lang = brand.get("default_language", "en-US")
+        if default_lang in voices and self.engine in voices[default_lang]:
+            return voices[default_lang][self.engine]
+        return None
+
     def _kokoro(self, text: str, output_path: Path, voice: str | None) -> Path:
         """Local Kokoro TTS via kokoro-onnx.
 
@@ -65,7 +78,8 @@ class TTSClient:
             ) from e
 
         voice_name = voice or "en-US-Studio-O"  # natural female; swap as needed
-        language = voice_name.split("-")[0] + "-" + voice_name.split("-")[1]
+        parts = voice_name.split("-")
+        language = f"{parts[0]}-{parts[1]}" if len(parts) >= 2 else "en-US"
 
         client = texttospeech.TextToSpeechClient()
         response = client.synthesize_speech(

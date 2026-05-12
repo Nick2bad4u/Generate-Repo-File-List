@@ -109,6 +109,31 @@ python src/spike_orchestrator.py publish-youtube
 python src/spike_orchestrator.py fetch-analytics --video-id <YouTube ID>
 ```
 
+### Spanish variant (per BEA scope: es-US)
+
+Each module ships in English + Spanish. The Spanish path branches after `derive-deck`:
+
+```bash
+# 1. Translate deck.json → deck-es-US.json (preserves TikTok proper nouns via glossary)
+python src/spike_orchestrator.py translate-deck --target es-US
+
+# 2. Render the Spanish video (auto-picks Spanish voice from brand/theme.json)
+python src/spike_orchestrator.py render-video \
+    --deck outputs/01-deck-spike/deck-es-US.json
+
+# 3. Spanish captions
+python src/spike_orchestrator.py generate-captions \
+    --deck outputs/01-deck-spike/deck-es-US.json \
+    --timing outputs/01-video-spike-es-US.timing.json
+
+# 4. Publish as a separate YouTube video with es-US metadata
+python src/spike_orchestrator.py publish-youtube \
+    --video outputs/01-video-spike-es-US.mp4 \
+    --captions outputs/01-video-spike-es-US.srt
+```
+
+Adding more languages (Portuguese-BR, etc.) is the same flow with a different `--target` and a voice entry in `brand/theme.json`.
+
 ### Day 3 — Evaluate + decide
 
 ```bash

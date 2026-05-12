@@ -1,5 +1,5 @@
 {
-  "_comment": "PLACEHOLDER — fill colors/fonts/voice with real brand values. See brand/README.md. The brand_name + youtube_channel are set for Bold Evolution Agency per the @boldevolution channel.",
+  "_comment": "PLACEHOLDER — fill colors/fonts with real brand values. See brand/README.md. The brand_name + youtube_channel are set for Bold Evolution Agency per the @boldevolution channel. Voices keyed by language for the multilingual pipeline (en-US baseline, es-US for Spanish per BEA scope).",
   "brand_name": "Bold Evolution Agency",
   "youtube_channel": "@boldevolution",
   "logo_path": "./brand/logo.png",
@@ -11,7 +11,18 @@
   "font_body": "Inter",
   "intro_seconds": 2,
   "outro_seconds": 2,
-  "voice": "en-US-natural-female",
+  "default_language": "en-US",
+  "voices": {
+    "_comment": "Voice IDs match TTS_ENGINE. For kokoro: 'af_sarah' (en), 'em_alex' (es). For gcloud: 'en-US-Studio-O', 'es-US-Studio-B'.",
+    "en-US": {
+      "kokoro": "af_sarah",
+      "gcloud": "en-US-Studio-O"
+    },
+    "es-US": {
+      "kokoro": "em_alex",
+      "gcloud": "es-US-Studio-B"
+    }
+  },
   "video": {
     "resolution": "1920x1080",
     "fps": 30,

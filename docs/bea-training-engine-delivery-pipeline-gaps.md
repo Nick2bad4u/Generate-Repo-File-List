@@ -165,8 +165,10 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 - All training is unlisted per BEA. No public-search surface, no SEO concerns.
 - One small implication: video titles / descriptions can be optimized for the **in-app catalog** (Toklytics Training tab) instead of YouTube search — different copywriting target.
 
-### 12. Multi-language localization
-- DeepL / Google Translate the narration text, regenerate audio in the target language, render new video. Same pipeline, different language input. Phase 2.
+### 12. Multi-language localization — ⬆️ PROMOTED to Phase 1
+- Spanish (es-US) is in scope per BEA. Spec: translate narration + on-screen text via Cloud Translation API, render with Cloud TTS Spanish voice, publish as a separate YouTube video.
+- Glossary in `translator.py` keeps TikTok product names ("Lion", "Universe", "Gift", "Battle"), platform names ("TikTok LIVE"), and BEA brand terms untranslated.
+- Other languages (Portuguese-BR, Tagalog, etc.) are mechanically identical — change the target code and add a voice mapping in `brand/theme.json`. Defer until Spanish is validated.
 
 ### 13. YouTube Shorts cuts
 - Vertical 9:16 30-second teasers from each module. Promotional reach. Phase 2.
@@ -225,7 +227,7 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 1. ~~**One YouTube channel or separate?**~~ **Resolved:** single channel — [@boldevolution](https://youtube.com/@boldevolution), "Bold Evolution Agency". Same channel hosts both public-facing content (if any) and unlisted training. Unlisted videos don't show on the channel page, so there's no UX conflict.
 2. ~~**Unlisted only, or some public training that doubles as marketing?**~~ **Resolved:** unlisted only.
 3. **What's the editorial review bar?** Per-video approval, or per-batch?
-4. **Languages beyond English in scope for v1?**
+4. ~~**Languages beyond English in scope for v1?**~~ **Resolved:** Spanish (es-US Latin American Spanish, the largest Spanish-speaking TikTok creator market). Implemented via Cloud Translation API + Cloud TTS Spanish voices. See `bea-training-engine-spike/src/translator.py` + `translate-deck` orchestrator command. Each module renders twice (English + Spanish) and publishes as two separate YouTube videos with appropriate `defaultLanguage`/`defaultAudioLanguage` metadata.
 5. ~~**Is Toklytics-LiveIQ ready to host a Training tab?**~~ **Resolved:** structure already in place. Engine needs to learn its schema.
 6. ~~**Branding — "BEA" or sub-brand?**~~ **Resolved:** full name "Bold Evolution Agency" (not "BEA Academy" or similar). Affects:
     - Video upload metadata: description prefix references "Bold Evolution Agency creator training"
