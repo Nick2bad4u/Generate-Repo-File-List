@@ -51,7 +51,7 @@ Sources → NotebookLM → Claude → PIL/TTS/ffmpeg → MP4
 - A dedicated BEA YouTube channel (or sub-channel) — decision needed: one channel for all training, separate from any consumer-facing BEA channel
 - Upload script with metadata: title, description, tags, category, language, default audience (Kids: No), made for kids: No
 - **AI-content disclosure** — YouTube requires creators to disclose "altered or synthetic content that seems realistic" for some categories. AI-narrated training likely qualifies. This is a checkbox in the upload metadata; getting it wrong is a strike risk.
-- Privacy: **Unlisted** by default (only people with the link / embed can play), not Private (which blocks embedding), not Public (creates a public-search SEO surface that may not be wanted for proprietary training).
+- Privacy: **Unlisted** (confirmed by BEA). Anyone with the link / embed can play; not searchable on YouTube; not visible on the channel page. The Toklytics-LiveIQ iframe embed is the only intended access path.
 - Chapter markers for navigability
 - End screens / cards optional
 
@@ -161,9 +161,9 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 
 ## Tier 3 — Nice to have, defer
 
-### 11. Discoverability / SEO (only if some training is public)
-- Public training videos can double as marketing for the agency. Title / description / tags / playlists / end-screens matter.
-- If everything stays unlisted, skip this entirely.
+### 11. Discoverability / SEO — ❌ OUT OF SCOPE
+- All training is unlisted per BEA. No public-search surface, no SEO concerns.
+- One small implication: video titles / descriptions can be optimized for the **in-app catalog** (Toklytics Training tab) instead of YouTube search — different copywriting target.
 
 ### 12. Multi-language localization
 - DeepL / Google Translate the narration text, regenerate audio in the target language, render new video. Same pipeline, different language input. Phase 2.
@@ -222,10 +222,17 @@ If LiveIQ's existing schema is leaner, the extras live in the engine's own DB an
 
 ## Open questions for BEA
 
-1. **One YouTube channel for everything, or separate channels?** (e.g., one for public marketing content, one for unlisted training)
-2. **Unlisted only, or some public training that doubles as marketing?**
+1. **One YouTube channel for everything, or separate channels?** (e.g., agency-public vs training-only)
+2. ~~**Unlisted only, or some public training that doubles as marketing?**~~ **Resolved:** unlisted only.
 3. **What's the editorial review bar?** Per-video approval, or per-batch?
 4. **Languages beyond English in scope for v1?**
-5. **Is Toklytics-LiveIQ ready to host a Training tab, or does that need its own product spike first?**
+5. ~~**Is Toklytics-LiveIQ ready to host a Training tab?**~~ **Resolved:** structure already in place. Engine needs to learn its schema.
 6. **Branding — is this content from "BEA" the agency, or a sub-brand like "BEA Academy" / "Creator U"?** (Affects channel name, video branding, AI-disclosure wording)
 7. **Do creators expect access to past training in perpetuity, or does retention follow Toklytics-LiveIQ's tier-based retention (14/30/90 days from KLING-Director's pricing)?**
+
+### Implications of unlisted-only
+- No public marketing value from the videos themselves — Toklytics-LiveIQ is the only intended player
+- Channel branding matters less (creators don't visit the channel page)
+- Comments on YouTube can be disabled at upload time (no public engagement layer anyway)
+- The YouTube channel becomes essentially a content storage + delivery CDN; the catalog/UX lives entirely in Toklytics-LiveIQ
+- If a video URL leaks (forwarded, shared), anyone can play it — no auth wall on YouTube itself. The proprietary moat is the *curation + coaching loop in Toklytics*, not the videos themselves
