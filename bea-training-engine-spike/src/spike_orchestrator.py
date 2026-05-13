@@ -245,6 +245,14 @@ def derive_deck(topic: str, slides: int, seconds: int, inputs: Path) -> None:
 
     deck_dir = OUTPUT_DIR / "01-deck-spike"
     deck_dir.mkdir(parents=True, exist_ok=True)
+
+    # Split the psychology analysis into a sibling file so editorial review
+    # can audit it independently of the deck content.
+    psychology = deck.pop("psychology_analysis", None)
+    if psychology:
+        (deck_dir / "psychology.json").write_text(json.dumps(psychology, indent=2))
+        console.print(f"[green]Psychology analysis saved to {deck_dir / 'psychology.json'}[/green]")
+
     (deck_dir / "deck.json").write_text(json.dumps(deck, indent=2))
     console.print(f"[green]Deck saved to {deck_dir / 'deck.json'}[/green]")
     console.print("Read the script aloud before continuing — sanity check.")

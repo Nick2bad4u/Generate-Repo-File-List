@@ -28,19 +28,23 @@ deck.json (with typed slides per pedagogy)
 Remotion project (apps/video-renderer)
     ├── compositions/
     │   └── TrainingModule.tsx     ← top-level <Composition>, reads deck.json
-    ├── scenes/                    ← one component per slide kind
+    ├── scenes/                    ← one component per slide kind (14)
     │   ├── Hook.tsx
-    │   ├── What.tsx
     │   ├── Why.tsx
+    │   ├── What.tsx
+    │   ├── LiveExample.tsx        ← NEW: visualizes "What This Looks Like On LIVE"
     │   ├── How.tsx
     │   ├── Script.tsx
     │   ├── Mistake.tsx
+    │   ├── ProTip.tsx             ← NEW: visualizes "Pro Tip" section
     │   ├── Success.tsx
     │   ├── Recap.tsx
     │   ├── Identity.tsx
     │   ├── Action.tsx
     │   ├── Reflection.tsx
     │   └── Checkpoint.tsx
+    ├── sections/                  ← optional section-divider transitions
+    │   └── SectionTitle.tsx       ← "Why This Matters" / "How To Apply It" etc. cards
     ├── elements/                  ← reusable building blocks
     │   ├── BrandIntro.tsx         ← 2-second branded open
     │   ├── BrandOutro.tsx
@@ -87,6 +91,18 @@ Each scene component receives a `slide` prop matching the deck.json shape. Each 
 **Visual:** Two-column split. Left: the "feeling" (emotional). Right: the metric/outcome (practical). Background tint shifts to a warmer brand color signaling "stakes."
 
 **Animation:** Left column reveals first; right column reveals on the second beat for contrast.
+
+### `<LiveExample />`
+
+**Visual:** Cinematic frame styled like a TikTok LIVE viewport — vertical phone outline, mock chat scrolling on the side, gift drops animated in. The narration is a scene unfolding ("Sarah drops a Lion. You stop mid-sentence…"); the visual mirrors what the narrator describes.
+
+**Animation:** Scene plays out — chat scrolls, gift appears, creator's caption text types out. This is the most cinematic scene kind. Heavier b-roll opportunity.
+
+### `<ProTip />`
+
+**Visual:** Confidential-feeling card — slightly different background (darker, with a subtle "advanced creator" badge or accent), single insight in bold type, small leverage-indicator (e.g., "↑ 2x retention" or "↓ 50% prep time") if applicable.
+
+**Animation:** Slow zoom-in on the card. Insight reveals all at once, not word-by-word — feels deliberate, not flashy. This is the "I'm telling you something only the top creators know" beat; restraint sells it.
 
 ### `<How />`
 
@@ -230,11 +246,12 @@ A `BRollPlayer` element calls the Pexels (or Storyblocks) API at render time, do
 - Render a test module end-to-end with these 3 kinds; fall back to a generic card for the others
 - **Gate:** the test module looks demonstrably better than the Phase 0 PIL output
 
-### Sprint 2 (1 week) — remaining components
-- Build `<Why />`, `<Script />`, `<Mistake />`, `<Success />`, `<Recap />`, `<Action />`, `<Reflection />`, `<Checkpoint />`
+### Sprint 2 (1.5 weeks) — remaining components
+- Build `<Why />`, `<LiveExample />`, `<Script />`, `<Mistake />`, `<ProTip />`, `<Success />`, `<Recap />`, `<Identity />`, `<Action />`, `<Reflection />`, `<Checkpoint />`
+- Build `<SectionTitle />` divider for the 10 lesson sections (optional but useful for longer modules)
 - Polish brand tokens with the real BEA visual identity (replace placeholder colors)
 - Add intro/outro brand stings
-- **Gate:** generate the "Acknowledging gifters within 8 seconds" example module end-to-end with all 11 slide kinds rendering correctly
+- **Gate:** generate the "Acknowledging gifters within 8 seconds" example module end-to-end with all 13 slide kinds rendering correctly (per the pedagogy doc's worked example)
 
 ### Sprint 3 (1 week) — b-roll + music + polish
 - Pexels API integration for `<Hook />` and selected `<How />` scenes

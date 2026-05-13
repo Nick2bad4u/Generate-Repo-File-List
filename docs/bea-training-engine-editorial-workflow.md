@@ -106,16 +106,29 @@ Lives in Toklytics-LiveIQ admin as a "Training Review" tab. The engine doesn't s
 - Free-text notes
 
 **Pedagogy compliance checklist** (see `bea-training-engine-pedagogy.md`) — every approved module must satisfy:
+
+**Structure (10-section lesson):**
 - [ ] Slide 1 is a `hook` — recognizable scene, no "welcome"
-- [ ] Module answers all 5 questions: What / Why / How / Success / Mistakes
+- [ ] All 10 lesson sections covered (or explicit N/A for very short modules): Why This Matters / Core Principle / What This Looks Like On LIVE / How To Apply / Common Mistakes / Pro Tip / Quick Win Challenge / Reflection / Success Checkpoint
 - [ ] Closing trio present in order: `action` → `reflection` → `checkpoint`
+
+**Psychology Mode:**
+- [ ] `psychology_analysis` sibling JSON exists and is topic-specific (not generic — could not swap topic and have it still apply)
+- [ ] Each `why` / `mistake` / `action` slide traces back to a barrier or motivator from the analysis
+- [ ] The `adaptation_strategy` is reflected in actual slide choices (not just declared then ignored)
+
+**Behavioral framing:**
 - [ ] Every `why` slide ties to money / growth / visibility / loyalty / confidence / consistency
 - [ ] Every `checkpoint` includes a quantified metric + duration
+- [ ] Every `action` references next LIVE specifically (not "soon" or "eventually")
+- [ ] Every `pro_tip` adds real insight beyond the basic `how` (not a restatement)
+
+**Tone + style:**
 - [ ] No corporate filler ("in this video", "it's important to note", "studies have shown")
 - [ ] Pattern variety — no 3+ same `kind` slides in a row
 - [ ] Length matches target ±10%
 
-Modules failing any of the above are rejected with reason `pedagogy` (not `factual` or `off-topic`). The rejection feedback loop in `slide_deriver.py` reads the specific pedagogy failure and adjusts the next generation pass.
+Modules failing any of the above are rejected with reason `pedagogy`. The rejection feedback loop in `slide_deriver.py` reads the specific pedagogy failure and adjusts the next generation pass.
 
 **Request changes:**
 - Same fields as reject, but module goes back to DRAFT instead of REJECTED, with the rejection hint attached for the next generation pass.

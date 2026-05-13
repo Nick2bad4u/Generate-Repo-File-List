@@ -30,14 +30,16 @@ Different slide kinds demand different tones inside the same module. Match the t
 
 | `kind` | Tone | Pacing |
 |---|---|---|
-| `hook` | Punchy, scene-specific, in-the-moment | Fast, ~6 seconds for a typical hook |
-| `what` | Crisp, definitional | Slower, deliberate — let the definition land |
+| `hook` | Punchy, scene-specific, in-the-moment | Fast, ~5-6 seconds |
 | `why` | Emotionally weighted | Mid-pace; emphasize the stakes |
+| `what` | Crisp, definitional | Slower, deliberate — let the definition land |
+| `live_example` | Vivid, present-tense, cinematic | Mid-fast; the scene should play in the listener's head |
 | `how` | Procedural, sequential | Steady; one step lands before the next starts |
 | `script` | Demonstrative — actually perform the line | Slow + clear so creators can copy |
 | `mistake` | Slightly cautionary, never preachy | Mid-pace; the consequence carries weight |
+| `pro_tip` | Confident, slight conspiratorial energy ("here's what advanced creators do") | Mid-pace; one insight, fully delivered |
 | `success` | Concrete, confident | Mid-pace; numbers should land clearly |
-| `recap` | Conversational question + pause | Pause after the question (use an ellipsis to signal it) |
+| `recap` | Conversational question + pause | Pause after the question (ellipsis signals it) |
 | `identity` | Affirming, not flattering | Slow, only one sentence |
 | `action` | Command, direct | Fast and crisp — this is the "go" |
 | `reflection` | Slowed down, intimate | Slowest pacing in the module |

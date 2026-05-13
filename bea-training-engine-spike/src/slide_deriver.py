@@ -48,10 +48,12 @@ class ClaudeSlideDeriver:
         slide_outline_prompt: str,
         narration_prompt: str,
     ) -> dict[str, Any]:
-        """Single Claude call that produces both outline + narration in one shot.
+        """Single Claude call that produces psychology analysis + outline + narration.
 
-        Splitting outline + narration into two calls is a Phase 1 refinement;
-        for the spike, one structured call is enough and saves time + tokens.
+        The deck output includes a top-level `psychology_analysis` object that
+        the editorial review checks (per docs/bea-training-engine-editorial-
+        workflow.md). The orchestrator splits this off into a sibling
+        `psychology.json` file for inspection.
         """
         client = Anthropic(api_key=self.api_key)
 
@@ -62,9 +64,12 @@ class ClaudeSlideDeriver:
 
         system = (
             f"{slide_outline_prompt}\n\n---\n\n{narration_prompt}\n\n"
-            "Return one JSON object combining both: a `slides` array per the "
-            "outline format, with a `narration` field on each slide containing "
-            "the spoken text per the narration format. No prose outside the JSON."
+            "Return one JSON object with three top-level keys: "
+            "`psychology_analysis` (per the slide-outline prompt's Step 1), "
+            "`slides` (typed scenes per the 14-kind vocabulary), and "
+            "the other deck metadata (topic, target_seconds, language, "
+            "narration_style). Each slide has its narration inlined. "
+            "No prose outside the JSON."
         )
 
         user = (
@@ -74,7 +79,8 @@ class ClaudeSlideDeriver:
             f"- ~{target_seconds / slide_count:.1f} seconds per slide\n\n"
             f"## NOTEBOOKLM AUDIO OVERVIEW TRANSCRIPT\n\n{transcript_block}\n\n"
             f"## BEA SOURCE CORPUS\n\n{sources_block}\n\n"
-            f"## OUTPUT\nReturn the deck JSON now."
+            f"## OUTPUT\nProduce the psychology_analysis first, then derive the "
+            f"slides from it. Return the deck JSON now."
         )
 
         response = client.messages.create(
@@ -85,7 +91,56 @@ class ClaudeSlideDeriver:
         )
 
         text = response.content[0].text
-        return _extract_json(text)
+        deck = _extract_json(text)
+
+        # Sanity check the pedagogy compliance basics — fail loud so the
+        # orchestrator catches it before review queue.
+        _validate_pedagogy(deck)
+
+        return deck
+
+
+def _validate_pedagogy(deck: dict[str, Any]) -> None:
+    """Cheap structural checks that the prompt's output matches the pedagogy.
+
+    Doesn't replace editorial review — catches obvious format failures so
+    the engine doesn't queue a malformed module for human review.
+    """
+    if "psychology_analysis" not in deck:
+        raise ValueError(
+            "Deck missing psychology_analysis. The slide-outline prompt requires "
+            "Step 1 pre-generation analysis. Re-run derive-deck."
+        )
+
+    slides = deck.get("slides", [])
+    if not slides:
+        raise ValueError("Deck has no slides")
+
+    if slides[0].get("kind") != "hook":
+        raise ValueError(
+            f"Slide 1 must be kind='hook' per pedagogy. Got: {slides[0].get('kind')}"
+        )
+
+    # Closing trio in order
+    closing = [s.get("kind") for s in slides[-3:]]
+    if closing != ["action", "reflection", "checkpoint"]:
+        raise ValueError(
+            f"Closing trio must be action -> reflection -> checkpoint. Got: {closing}"
+        )
+
+    # Validate every slide has a recognized kind
+    VALID_KINDS = {
+        "hook", "why", "what", "live_example", "how", "script",
+        "mistake", "pro_tip", "success", "recap", "identity",
+        "action", "reflection", "checkpoint",
+    }
+    for s in slides:
+        k = s.get("kind")
+        if k not in VALID_KINDS:
+            raise ValueError(
+                f"Slide {s.get('index')} has unknown kind={k!r}. "
+                f"Allowed: {sorted(VALID_KINDS)}"
+            )
 
 
 def _extract_json(text: str) -> dict:
