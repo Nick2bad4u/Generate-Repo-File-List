@@ -361,3 +361,6 @@ $RECYCLE.BIN/
 # Custom rules (everything added below won't be overriden by 'Generate .gitignore File' if you use 'Update' option)
 todo.md
 .prettier-cache
+# Ignore generated doc coverage badges
+docs/docusaurus/static/img/coverage.json
+docs/docusaurus/static/img/coverage.svg
